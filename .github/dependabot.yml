@@ -1,0 +1,22 @@
+# Weekly dependency updates. The 3-day cooldown matches pnpm's minimumReleaseAge
+# (pnpm-workspace.yaml): brand-new releases are not adopted immediately.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    groups:
+      actions:
+        patterns: ['*']

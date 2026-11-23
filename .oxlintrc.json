@@ -1,8 +1,58 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": ["react", "typescript", "oxc", "vitest"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "vitest/no-conditional-expect": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/core/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "firebase",
+                  "firebase/*",
+                  "@firebase/*",
+                  "zod",
+                  "react",
+                  "react/*",
+                  "react-dom",
+                  "react-dom/*",
+                  "**/data",
+                  "**/data/**",
+                  "**/views",
+                  "**/views/**"
+                ],
+                "message": "src/core on puhdas: ei Firebase-, Zod-, React-, data- eikä views-riippuvuuksia."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/views/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["firebase", "firebase/*", "@firebase/*"],
+                "message": "Käytä Firebasea vain src/data-kerroksen kautta."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }

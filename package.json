@@ -6,19 +6,19 @@
   "type": "module",
   "packageManager": "pnpm@10.28.0",
   "engines": {
-    "node": ">=22"
+    "node": "^24.0.0"
   },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "lint": "oxlint --deny-warnings",
+    "lint": "oxlint --type-aware --deny-warnings",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:tz": "TZ=UTC vitest run && TZ=America/New_York vitest run && TZ=Europe/Helsinki vitest run",
+    "test:tz": "TZ=UTC vitest run && TZ=America/New_York vitest run && TZ=Europe/Helsinki vitest run --coverage",
     "coverage": "vitest run --coverage",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:tz"
   },
@@ -33,8 +33,9 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "@vitest/coverage-v8": "^5.1.1",
-    "fast-check": "^4.11.0",
-    "oxlint": "^1.90.0",
+    "fast-check": "^4.10.3",
+    "oxlint": "^1.94.0",
+    "oxlint-tsgolint": "~7.0.2007",
     "prettier": "^3.10.1",
     "typescript": "~7.0.2",
     "vite": "^8.3.6",

@@ -15,33 +15,53 @@ import type { Gig, Item, Line } from './types'
 export const CONDITION_SRC = '#kunto'
 
 export interface Demand {
-  start: Ms
+  readonly start: Ms
   /** May be `Infinity` (open-ended condition or unreturned equipment). */
-  end: Ms
-  qty: number
+  readonly end: Ms
+  readonly qty: number
   /** Confirmed, done, departed or a condition: counts towards red conflicts. */
-  firm: boolean
+  readonly firm: boolean
   /** Gig id, or `CONDITION_SRC`. */
-  src: string
-  /** The booking is extended past its planned end because equipment has not been returned. */
-  late: boolean
+  readonly src: string
+  /** The line that produced this demand (absent for a condition). */
+  readonly lineId?: string
+  /**
+   * Set when the booking is extended past its planned end because the equipment
+   * has not been returned (rule 5): the planned end ("piti palata …").
+   */
+  readonly dueAt?: Ms
+}
+
+/** An unreturned booking active in a segment ("ei ole palautettu keikalta X, myöhässä …"). */
+export interface LateRef {
+  readonly gigId: string
+  readonly lineId: string
+  readonly dueAt: Ms
 }
 
 export interface Segment {
   start: Ms
   end: Ms
   /** Firm demand exceeds capacity. */
-  red: boolean
+  readonly red: boolean
   /** Tentative demand causes the excess or makes it larger. */
-  yellow: boolean
+  readonly yellow: boolean
   /** Capacity minus all demand (negative when overbooked); minimum over the segment. */
   free: number
   /** Sources of firm demand, sorted and unique; empty unless `red`. */
-  redSrcs: string[]
+  readonly redSrcs: readonly string[]
   /** Sources of all demand, sorted and unique. */
-  allSrcs: string[]
-  /** Some active demand is a late (unreturned) booking. */
-  late: boolean
+  readonly allSrcs: readonly string[]
+  /** Unreturned bookings active in the segment, sorted by gig and line. */
+  readonly late: readonly LateRef[]
+}
+
+/** A red segment, the unit rule 9 compares before and after a save. */
+export interface RedSegment {
+  readonly itemId: string
+  readonly start: Ms
+  readonly end: Ms
+  readonly srcs: readonly string[]
 }
 
 export interface FreeSpan {
@@ -73,12 +93,13 @@ export interface LineRef {
 }
 
 export interface LineConflict {
-  start: Ms
-  end: Ms
-  severity: 'red' | 'yellow'
+  readonly start: Ms
+  readonly end: Ms
+  readonly severity: 'red' | 'yellow'
   /** Other demand sources in the segment (gig ids or `CONDITION_SRC`), sorted. */
-  competitors: string[]
-  late: boolean
+  readonly competitors: readonly string[]
+  /** Unreturned bookings of other gigs in the segment. */
+  readonly late: readonly LateRef[]
 }
 
 export interface AvailabilityInput {
@@ -131,7 +152,7 @@ export function computeSegments(capacity: number, demands: readonly Demand[]): S
       free: capacity - allUse,
       redSrcs: red ? uniqueSorted(firmActive.map((d) => d.src)) : [],
       allSrcs: uniqueSorted(active.map((d) => d.src)),
-      late: active.some((d) => d.late),
+      late: lateRefs(active),
     }
     const prev = out.at(-1)
     if (prev && prev.end === seg.start && sameClass(prev, seg)) {
@@ -144,11 +165,23 @@ export function computeSegments(capacity: number, demands: readonly Demand[]): S
   return out
 }
 
+function lateRefs(active: readonly Demand[]): LateRef[] {
+  const refs = new Map<string, LateRef>()
+  for (const d of active) {
+    if (d.dueAt === undefined || d.lineId === undefined) continue
+    refs.set(lineKey(d.src, d.lineId), { gigId: d.src, lineId: d.lineId, dueAt: d.dueAt })
+  }
+  return [...refs.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, r]) => r)
+}
+
+const lateKey = (refs: readonly LateRef[]) =>
+  refs.map((r) => `${lineKey(r.gigId, r.lineId)}@${r.dueAt}`).join('\n')
+
 function sameClass(a: Segment, b: Segment): boolean {
   return (
     a.red === b.red &&
     a.yellow === b.yellow &&
-    a.late === b.late &&
+    lateKey(a.late) === lateKey(b.late) &&
     a.redSrcs.join('\n') === b.redSrcs.join('\n') &&
     a.allSrcs.join('\n') === b.allSrcs.join('\n')
   )
@@ -191,14 +224,34 @@ export function computeFreeTimeline(
   return out
 }
 
-/** Rule 9: red combinations present after a save that were not present before. */
-export function blockingOnSave(before: ReadonlySet<string>, after: ReadonlySet<string>): string[] {
-  return [...after].filter((k) => !before.has(k)).sort()
+export const redKey = (r: RedSegment): string => `${r.itemId}|${r.srcs.join(',')}`
+
+/**
+ * Rule 9: red combinations that a save would create. A red segment after the save
+ * is pre-existing if, on the same item and overlapping it in time, a red segment
+ * existed before whose sources include all of its sources. So leaving a 3-way
+ * conflict (A,B,C → B,C) or shortening an existing one is never blocked, while the
+ * same pair clashing on a new, non-overlapping period is.
+ */
+export function blockingOnSave(
+  before: readonly RedSegment[],
+  after: readonly RedSegment[],
+): string[] {
+  const existed = (a: RedSegment) =>
+    before.some(
+      (b) =>
+        b.itemId === a.itemId &&
+        b.start < a.end &&
+        a.start < b.end &&
+        a.srcs.every((x) => b.srcs.includes(x)),
+    )
+  return [...new Set(after.filter((a) => !existed(a)).map(redKey))].sort()
 }
 
 /**
  * The availability model for one snapshot of data at one instant.
- * Build a new one whenever data or "now" changes; results are memoised inside.
+ * Build a new one whenever data or "now" changes; results are memoised inside and
+ * returned as shared read-only snapshots (use `toSorted()` etc., never mutate).
  */
 export class Availability {
   readonly now: Ms
@@ -210,9 +263,9 @@ export class Availability {
   private readonly lineByKey = new Map<string, LineRef>()
   private readonly receiversByKey = new Map<string, LineRef[]>()
   private readonly linesByItem = new Map<string, LineRef[]>()
-  private readonly chainMemo = new Map<string, ChainCheck>()
-  private readonly segmentMemo = new Map<string, Segment[]>()
-  private readonly demandMemo = new Map<string, Demand[]>()
+  private readonly chainMemo = new Map<string, Readonly<ChainCheck>>()
+  private readonly segmentMemo = new Map<string, readonly Readonly<Segment>[]>()
+  private readonly demandMemo = new Map<string, readonly Demand[]>()
 
   constructor(input: AvailabilityInput) {
     this.now = input.now
@@ -281,7 +334,7 @@ export class Availability {
   }
 
   /** Rule 4: whether this line's direct transfer is valid, and why not. */
-  chainCheck(ref: LineRef): ChainCheck {
+  chainCheck(ref: LineRef): Readonly<ChainCheck> {
     const key = lineKey(ref.gig.id, ref.line.id)
     const cached = this.chainMemo.get(key)
     if (cached) return cached
@@ -301,14 +354,20 @@ export class Availability {
     if (src.line.itemId !== r.itemId) return { ok: false, problem: 'item-mismatch' }
     if (r.qty > src.line.qty) return { ok: false, problem: 'qty-exceeds-source' }
     if (this.liveReceivers(src).length !== 1) return { ok: false, problem: 'multiple-receivers' }
-    const h = r.from.handoverAt
-    if (!(this.lineStart(src) < h && h <= this.lineEnd(src))) {
-      return { ok: false, problem: 'handover-outside-source' }
-    }
-    if (!(h < b.eventEnd && h < this.lineEnd(ref))) {
-      return { ok: false, problem: 'handover-after-receiver-end' }
-    }
-    return { ok: true }
+    const problem = this.handoverProblem(src, b, this.lineEnd(ref), r.from.handoverAt)
+    return problem ? { ok: false, problem } : { ok: true }
+  }
+
+  /** The handover part of rule 4, shared by `chainCheck` and `defaultHandover`. */
+  private handoverProblem(
+    src: LineRef,
+    receiver: Gig,
+    receiverLineEnd: Ms,
+    h: Ms,
+  ): 'handover-outside-source' | 'handover-after-receiver-end' | undefined {
+    if (!(this.lineStart(src) < h && h <= this.lineEnd(src))) return 'handover-outside-source'
+    if (!(h < receiver.eventEnd && h < receiverLineEnd)) return 'handover-after-receiver-end'
+    return undefined
   }
 
   /** True when following `from` links from this line leads back to it. */
@@ -340,18 +399,19 @@ export class Availability {
   }
 
   /**
-   * Rule 11: default handover for a new direct transfer from `source` to a line
-   * on `receiver`: source event end + 1 h, or the receiver's departure if that
-   * would break rule 4.
+   * Rule 11: default handover for a new direct transfer from `source` to a line on
+   * `receiver`. The first candidate that satisfies rule 4: source event end + 1 h,
+   * the end of the source line, or the receiver's departure (multi-day source).
+   * Undefined when none fits; the user then enters the handover.
    */
-  defaultHandover(source: LineRef, receiver: Gig, receiverLineEnd?: Ms): Ms {
-    const h = source.gig.eventEnd + DEFAULT_HANDOVER_DELAY
-    const fits =
-      this.lineStart(source) < h &&
-      h <= this.lineEnd(source) &&
-      h < receiver.eventEnd &&
-      h < (receiverLineEnd ?? receiver.equipEnd)
-    return fits ? h : receiver.equipStart
+  defaultHandover(source: LineRef, receiver: Gig, receiverLineEnd?: Ms): Ms | undefined {
+    const rEnd = receiverLineEnd ?? receiver.equipEnd
+    const candidates = [
+      source.gig.eventEnd + DEFAULT_HANDOVER_DELAY,
+      this.lineEnd(source),
+      receiver.equipStart,
+    ]
+    return candidates.find((h) => this.handoverProblem(source, receiver, rEnd, h) === undefined)
   }
 
   /**
@@ -362,10 +422,11 @@ export class Availability {
   transferCandidates(ref: LineRef): LineRef[] {
     const start = ref.line.start ?? ref.gig.equipStart
     const end = this.lineEnd(ref)
+    const selfKey = lineKey(ref.gig.id, ref.line.id)
     return (this.linesByItem.get(ref.line.itemId) ?? []).filter((other) => {
       if (other.gig.id === ref.gig.id || !isLive(other.gig)) return false
       if (!(other.gig.eventStart < ref.gig.eventStart)) return false
-      const taken = this.liveReceivers(other).some((r) => r.line !== ref.line)
+      const taken = this.liveReceivers(other).some((r) => lineKey(r.gig.id, r.line.id) !== selfKey)
       if (taken) return false
       return this.lineStart(other) < end && start < this.lineEnd(other)
     })
@@ -385,34 +446,36 @@ export class Availability {
     const sent = receiver ? receiver.line.qty : 0
     const returnedAt =
       l.end !== undefined ? (g.lineMarks?.[l.id]?.returnedAt ?? g.returnedAt) : g.returnedAt
-    let end = this.lineEnd(ref)
-    let late = false
+    const plannedEnd = this.lineEnd(ref)
+    let end = plannedEnd
+    let dueAt: Ms | undefined
     if (returnedAt !== undefined && returnedAt < end) {
       end = returnedAt // returned early
     } else if (returnedAt === undefined && firm && !this.isOwnStudio(g) && this.now >= end) {
       end = Infinity // not returned: keeps blocking (rule 5)
-      late = true
+      dueAt = plannedEnd
     }
     const handoverAt = receiver?.line.from?.handoverAt ?? start
-    return [
-      { start, end, qty: l.qty - sent, firm, src: g.id, late },
-      { start, end: handoverAt, qty: sent, firm, src: g.id, late: false },
-    ].filter((d) => d.qty > 0 && d.start < d.end)
+    const stay: Demand = { start, end, qty: l.qty - sent, firm, src: g.id, lineId: l.id }
+    const handedOver: Demand = { start, end: handoverAt, qty: sent, firm, src: g.id, lineId: l.id }
+    return [dueAt === undefined ? stay : { ...stay, dueAt }, handedOver].filter(
+      (d) => d.qty > 0 && d.start < d.end,
+    )
   }
 
-  demandsFor(itemId: string): Demand[] {
+  demandsFor(itemId: string): readonly Demand[] {
     const cached = this.demandMemo.get(itemId)
     if (cached) return cached
     const it = this.itemById.get(itemId)
     const out: Demand[] = []
-    if (it && it.condition !== 'ok') {
+    // An archived item already has capacity 0; its condition adds nothing (rule 6).
+    if (it && !it.archived && it.condition !== 'ok') {
       out.push({
         start: -Infinity,
         end: it.conditionUntil ?? Infinity,
         qty: it.quantity,
         firm: true,
         src: CONDITION_SRC,
-        late: false,
       })
     }
     for (const ref of this.linesByItem.get(itemId) ?? []) out.push(...this.lineDemands(ref))
@@ -429,7 +492,7 @@ export class Availability {
   // Conflicts (rules 7, 9) and free quantities
   // -------------------------------------------------------------------------
 
-  segments(itemId: string): Segment[] {
+  segments(itemId: string): readonly Readonly<Segment>[] {
     const cached = this.segmentMemo.get(itemId)
     if (cached) return cached
     const segs = computeSegments(this.capacity(itemId), this.demandsFor(itemId))
@@ -437,15 +500,18 @@ export class Availability {
     return segs
   }
 
+  /** Every red segment of every item; input to rule 9 (`blockingOnSave`). */
+  redSegments(): RedSegment[] {
+    return this.bookedItemIds().flatMap((itemId) =>
+      this.segments(itemId)
+        .filter((s) => s.red)
+        .map((s) => ({ itemId, start: s.start, end: s.end, srcs: s.redSrcs })),
+    )
+  }
+
   /** Every red combination, e.g. "kam01|gigB,gigW". */
   redKeys(): Set<string> {
-    const keys = new Set<string>()
-    for (const itemId of this.bookedItemIds()) {
-      for (const s of this.segments(itemId)) {
-        if (s.red) keys.add(`${itemId}|${s.redSrcs.join(',')}`)
-      }
-    }
-    return keys
+    return new Set(this.redSegments().map(redKey))
   }
 
   /** Conflicts that concern one gig line, for its badge. */
@@ -462,7 +528,7 @@ export class Availability {
         end: s.end,
         severity,
         competitors: s.allSrcs.filter((x) => x !== gigId),
-        late: s.late,
+        late: s.late.filter((r) => r.gigId !== gigId),
       })
     }
     return out
@@ -480,7 +546,7 @@ export class Availability {
 
   private bookedItemIds(): string[] {
     const ids = new Set<string>(this.linesByItem.keys())
-    for (const it of this.items) if (it.condition !== 'ok') ids.add(it.id)
+    for (const it of this.items) if (!it.archived && it.condition !== 'ok') ids.add(it.id)
     return [...ids].sort()
   }
 }

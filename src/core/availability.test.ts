@@ -54,7 +54,6 @@ describe('half-open intervals (rule 1)', () => {
     qty: 1,
     firm: true,
     src,
-    late: false,
   })
 
   it('a booking ending at 17.00 and one starting at 17.00 do not overlap', () => {
@@ -71,8 +70,8 @@ describe('half-open intervals (rule 1)', () => {
 describe('severity per segment (rule 7)', () => {
   it('confirmed excess on [t1,t2) is red; tentative increasing it on [t2,t3) is also yellow', () => {
     const demands: Demand[] = [
-      { start: 0, end: 30, qty: 2, firm: true, src: 'f', late: false },
-      { start: 20, end: 30, qty: 1, firm: false, src: 't', late: false },
+      { start: 0, end: 30, qty: 2, firm: true, src: 'f' },
+      { start: 20, end: 30, qty: 1, firm: false, src: 't' },
     ]
     const segs = computeSegments(1, demands)
     expect(segs.map((s) => [s.start, s.end, s.red, s.yellow])).toEqual([
@@ -83,9 +82,9 @@ describe('severity per segment (rule 7)', () => {
 
   it('srcs are sorted and unique', () => {
     const demands: Demand[] = [
-      { start: 0, end: 10, qty: 1, firm: true, src: 'zeta', late: false },
-      { start: 0, end: 10, qty: 1, firm: true, src: 'alpha', late: false },
-      { start: 0, end: 10, qty: 1, firm: true, src: 'alpha', late: false },
+      { start: 0, end: 10, qty: 1, firm: true, src: 'zeta' },
+      { start: 0, end: 10, qty: 1, firm: true, src: 'alpha' },
+      { start: 0, end: 10, qty: 1, firm: true, src: 'alpha' },
     ]
     expect(computeSegments(1, demands)[0]?.redSrcs).toEqual(['alpha', 'zeta'])
   })
@@ -106,14 +105,14 @@ describe('two gigs want KAM-01 (section 4.3, rule 9)', () => {
   })
 
   it('confirming B with KAM-01 is blocked: new red combination KAM-01|B,W', () => {
-    const before = model([gigA(), gigW(), gigBInitial()]).redKeys()
-    const after = model([gigA(), gigW(), confirmed(gigBInitial())]).redKeys()
+    const before = model([gigA(), gigW(), gigBInitial()]).redSegments()
+    const after = model([gigA(), gigW(), confirmed(gigBInitial())]).redSegments()
     expect(blockingOnSave(before, after)).toContain('kam01|B,W')
   })
 
   it('swapping KAM-01 to KAM-04 and chaining the PTZs lets B be confirmed', () => {
-    const before = model([gigA(), gigW(), gigBInitial()]).redKeys()
-    const after = model([gigA(), gigW(), gigBResolved()]).redKeys()
+    const before = model([gigA(), gigW(), gigBInitial()]).redSegments()
+    const after = model([gigA(), gigW(), gigBResolved()]).redSegments()
     expect(blockingOnSave(before, after)).toEqual([])
   })
 
@@ -147,16 +146,16 @@ describe('two gigs want KAM-01 (section 4.3, rule 9)', () => {
   it('first to confirm wins: the second confirmation is blocked', () => {
     const w = { ...gigW(), status: 'alustava' as const }
     const b = gigBInitial()
-    const wConfirmed = model([gigA(), confirmed(w), b]).redKeys()
-    const bothConfirmed = model([gigA(), confirmed(w), confirmed(b)]).redKeys()
+    const wConfirmed = model([gigA(), confirmed(w), b]).redSegments()
+    const bothConfirmed = model([gigA(), confirmed(w), confirmed(b)]).redSegments()
     expect(blockingOnSave(wConfirmed, bothConfirmed)).toContain('kam01|B,W')
   })
 
   it('an existing red conflict does not block unrelated edits', () => {
     const red = [gigA(), gigW(), confirmed(gigBInitial())]
-    const before = model(red).redKeys()
+    const before = model(red).redSegments()
     const edited = red.map((g) => (g.id === 'B' ? { ...g, notes: 'muistiinpano' } : g))
-    expect(blockingOnSave(before, model(edited).redKeys())).toEqual([])
+    expect(blockingOnSave(before, model(edited).redSegments())).toEqual([])
   })
 })
 
@@ -327,7 +326,7 @@ describe('direct transfers (rules 3, 4, 8, 11)', () => {
     expect(m.chainCheck(ref(m, 'S', 's1'))).toEqual({ ok: false, problem: 'cycle' })
     expect(m.chainCheck(ref(m, 'P', 'p1'))).toEqual({ ok: false, problem: 'cycle' })
     expect(m.chainCheck(ref(m, 'Q', 'q1'))).toEqual({ ok: false, problem: 'cycle' })
-    expect(() => m.redKeys()).not.toThrow()
+    expect(() => m.redSegments()).not.toThrow()
   })
 
   it('an item mismatch or a larger quantity than the source is "ei täsmää"', () => {
@@ -361,10 +360,10 @@ describe('direct transfers (rules 3, 4, 8, 11)', () => {
       equipEnd: at('2026-12-02 10:00'),
       lines: [line('h1', 'xlr', { qty: 30 })],
     })
-    const before = model([gigA(), gigBResolved(), gigC(), h]).redKeys()
+    const before = model([gigA(), gigBResolved(), gigC(), h]).redSegments()
     // C moves its handover from Tue 17.00 to Wed 11.00: B's 12 XLR stay firm longer.
-    const after = model([gigA(), gigBResolved(), gigC(at('2026-12-02 11:00')), h]).redKeys()
-    expect(before.has('xlr|B,H')).toBe(false)
+    const after = model([gigA(), gigBResolved(), gigC(at('2026-12-02 11:00')), h]).redSegments()
+    expect(before.some((r) => r.itemId === 'xlr')).toBe(false)
     expect(blockingOnSave(before, after)).toContain('xlr|B,H')
   })
 })
@@ -377,8 +376,10 @@ describe('unreturned equipment (rule 5, section 4.5)', () => {
     expect(m.lineConflicts(ref(m, 'D', 'd1'))[0]).toMatchObject({
       severity: 'red',
       competitors: ['B'],
-      late: true,
+      late: [{ gigId: 'B', lineId: 'b1', dueAt: at('2026-12-02 12:00') }],
     })
+    // "myöhässä 21 h": now − dueAt
+    expect(thuNine - at('2026-12-02 12:00')).toBe(21 * HOUR)
     const m2 = model([gigA(), gigBResolved(), gigD('alustava')], thuNine)
     expect(m2.lineConflicts(ref(m2, 'D', 'd1'))[0]?.severity).toBe('yellow')
   })
@@ -460,7 +461,7 @@ describe('multi-day gig with equipment leaving mid-gig (section 4.6)', () => {
     const unmarked = model([gigE(), tuesdayGig], tueNine)
     expect(unmarked.lineConflicts(ref(unmarked, 'G', 'g1'))[0]).toMatchObject({
       severity: 'red',
-      late: true,
+      late: [{ gigId: 'E', lineId: 'e3', dueAt: at('2026-12-07 19:00') }],
     })
 
     const marked = {
@@ -551,5 +552,136 @@ describe('capacity edge cases', () => {
     expect(model([cancelled]).demandsFor('kam01')).toEqual([])
     const departed = { ...cancelled, locationId: STUDIO, departedAt: at('2026-12-01 08:00') }
     expect(model([departed]).demandsFor('kam01')).toHaveLength(1)
+  })
+  it('an archived item in service or broken creates no conflict on its own', () => {
+    const its = [
+      item('x', 'X-01', { archived: true, condition: 'rikki' }),
+      item('y', 'Y-01', {
+        archived: true,
+        condition: 'huollossa',
+        conditionUntil: at('2026-12-31 12:00'),
+      }),
+    ]
+    expect(model([], undefined, its).redKeys()).toEqual(new Set())
+  })
+})
+
+describe('rule 9 compares red segments, not just keys', () => {
+  const t = (from: string, to: string) => ({
+    status: 'vahvistettu' as const,
+    equipStart: at(from),
+    eventStart: at(from),
+    eventEnd: at(to),
+    equipEnd: at(to),
+  })
+  const three = () => [
+    gig('P', { ...t('2026-12-10 08:00', '2026-12-10 12:00'), lines: [line('p', 'kam02')] }),
+    gig('Q', { ...t('2026-12-10 09:00', '2026-12-10 13:00'), lines: [line('q', 'kam02')] }),
+    gig('R', { ...t('2026-12-10 10:00', '2026-12-10 14:00'), lines: [line('r', 'kam02')] }),
+  ]
+
+  it('leaving a 3-way conflict is not blocked', () => {
+    const before = model(three()).redSegments()
+    const after = model(three().filter((g) => g.id !== 'P')).redSegments()
+    expect(blockingOnSave(before, after)).toEqual([])
+  })
+
+  it('shortening a gig inside an existing conflict is not blocked', () => {
+    const before = model(three()).redSegments()
+    const shorter = three().map((g) =>
+      g.id === 'R' ? { ...g, ...t('2026-12-10 10:00', '2026-12-10 11:00') } : g,
+    )
+    expect(blockingOnSave(before, model(shorter).redSegments())).toEqual([])
+  })
+
+  it('the same pair clashing on a new, separate day is blocked', () => {
+    const p = gig('P', {
+      ...t('2026-12-10 08:00', '2026-12-10 12:00'),
+      lines: [line('p', 'kam02')],
+    })
+    const q = gig('Q', {
+      ...t('2026-12-10 09:00', '2026-12-10 13:00'),
+      lines: [line('q', 'kam02')],
+    })
+    const before = model([p, q]).redSegments()
+    const qTwoDays = { ...q, ...t('2026-12-10 09:00', '2026-12-11 13:00') }
+    const p2 = gig('P', {
+      ...t('2026-12-10 08:00', '2026-12-11 12:00'),
+      lines: [line('p', 'kam02')],
+    })
+    // P and Q already clash on the 10th; extending both so they also clash on the 11th
+    // overlaps the old segment, so it is treated as the same conflict.
+    expect(blockingOnSave(before, model([p2, qTwoDays]).redSegments())).toEqual([])
+    const r = gig('R', {
+      ...t('2026-12-12 08:00', '2026-12-12 12:00'),
+      lines: [line('r', 'kam02')],
+    })
+    const s = gig('S', {
+      ...t('2026-12-12 09:00', '2026-12-12 13:00'),
+      lines: [line('s', 'kam02')],
+    })
+    expect(blockingOnSave(before, model([p, q, r, s]).redSegments())).toEqual(['kam02|R,S'])
+  })
+})
+
+describe('review regressions', () => {
+  const receiverAt = (id: string, from: string, to: string, extra: Partial<Gig> = {}) =>
+    gig(id, {
+      status: 'vahvistettu',
+      equipStart: at(from),
+      eventStart: at(from),
+      eventEnd: at(to),
+      equipEnd: at(to),
+      ...extra,
+    })
+
+  it('handover at or before the source line’s start is "ei täsmää" (strict bound)', () => {
+    const k = (h: string) =>
+      receiverAt('K', '2026-12-08 08:00', '2026-12-08 13:00', {
+        lines: [line('k1', 'ptz03', { from: { gigId: 'E', lineId: 'e3', handoverAt: at(h) } })],
+      })
+    for (const h of ['2026-12-06 14:00', '2026-12-06 13:00']) {
+      const m = model([gigE(), k(h)])
+      expect(m.chainCheck(ref(m, 'K', 'k1'))).toEqual({
+        ok: false,
+        problem: 'handover-outside-source',
+      })
+    }
+    const m = model([gigE(), k('2026-12-06 14:01')])
+    expect(m.chainCheck(ref(m, 'K', 'k1')).ok).toBe(true)
+  })
+
+  it('default handover falls back to the source line’s end, or is undefined when nothing fits', () => {
+    const thursday = receiverAt('T', '2026-12-10 08:00', '2026-12-10 16:00')
+    const m = model([gigE(), thursday])
+    // Messut + 1 h (Tue 17.00) is after PTZ-03's own end; Mon 19.00 (line end) fits.
+    expect(m.defaultHandover(ref(m, 'E', 'e3'), thursday)).toBe(at('2026-12-07 19:00'))
+    const saturday = receiverAt('U', '2026-12-05 08:00', '2026-12-05 16:00')
+    const m2 = model([gigE(), saturday])
+    expect(m2.defaultHandover(ref(m2, 'E', 'e1'), saturday)).toBeUndefined()
+  })
+
+  it('transfer candidates do not depend on object identity of the ref', () => {
+    const m = model([gigA(), gigBResolved()])
+    const r = ref(m, 'B', 'b2')
+    const copy = { gig: { ...r.gig }, line: { ...r.line } }
+    expect(m.transferCandidates(copy).map((x) => x.line.id)).toEqual(['a1'])
+  })
+
+  it('a receiving line keeps its booking ("needed from") if the source gig is cancelled', () => {
+    const f = gigF(true)
+    const withNeeded = { ...f, lines: [{ ...f.lines[0]!, start: at('2026-12-08 08:30') }] }
+    const m = model([{ ...gigE(), status: 'peruttu' }, withNeeded])
+    expect(m.chainCheck(ref(m, 'F', 'f1'))).toEqual({ ok: false, problem: 'gig-not-live' })
+    expect(m.lineDemands(ref(m, 'F', 'f1'))).toEqual([
+      expect.objectContaining({ start: at('2026-12-08 08:30'), end: at('2026-12-08 13:00') }),
+    ])
+  })
+
+  it('shared results are read-only snapshots and stay stable', () => {
+    const m = model([gigA(), gigW(), gigBInitial()])
+    const first = m.segments('kam01')
+    expect(m.segments('kam01')).toBe(first)
+    expect(first.toSorted((a, b) => b.start - a.start)).not.toBe(first)
   })
 })

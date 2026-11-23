@@ -1,0 +1,11 @@
+# pnpm settings for this single-package repo.
+
+# Run package.json scripts through pnpm's cross-platform shell, so `TZ=... vitest run`
+# in test:tz and check also works on Windows.
+shellEmulator: true
+
+# Supply-chain guard: refuse package versions published less than 3 days ago.
+minimumReleaseAge: 4320
+
+# Fail installation on a Node version other than the one in package.json engines.
+engineStrict: true

@@ -69,8 +69,13 @@ export function offsetAt(ms: Ms, timeZone: string = HELSINKI): Ms {
   return asUtc - (ms - (((ms % 1000) + 1000) % 1000))
 }
 
+/** Years the app accepts. Also keeps `Date.UTC` away from its 0–99 → 1900–1999 remapping. */
+export const MIN_YEAR = 2000
+export const MAX_YEAR = 2100
+
 function isValidLocal(t: LocalDateTime): boolean {
   if (![t.year, t.month, t.day, t.hour, t.minute].every(Number.isInteger)) return false
+  if (t.year < MIN_YEAR || t.year > MAX_YEAR) return false
   if (t.month < 1 || t.month > 12 || t.hour < 0 || t.hour > 23 || t.minute < 0 || t.minute > 59) {
     return false
   }

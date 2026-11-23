@@ -88,10 +88,10 @@ gigs/{id}             name, client?, locationId, room?, responsible, crew: email
                       awaitingReturn, updatedAt, updatedBy
 ```
 
-- **Laitetta** ei voi lisätä samalle keikalle kahdesti (laitteen paluu samalle keikalle kesken keikan on Myöhemmin-listalla). **Määrätavaran** rivin määrä on enintään `quantity`; rikkinäiset kaapelit vähennetään määrästä.
+- **Laitetta** ei voi lisätä samalle keikalle kahdesti (laitteen paluu samalle keikalle kesken keikan on Myöhemmin-listalla). **Määrätavaran** rivin määrä on enintään `quantity`; rikkinäiset kaapelit vähennetään määrästä. Määrätavaralla voi olla samalla keikalla useita rivejä (esim. osa tulee myöhemmin tai suoraan toiselta keikalta); kapasiteetin tarkistaa saatavuuslaskenta.
 - **Tunnus** on yksilöllinen kirjainkoosta ja välilyönneistä riippumatta. **Kategoria** on vapaa teksti, jota täydennetään aiemmista arvoista.
 - **Suoran siirron** vastaanottava rivi voi ottaa lähderiviltä koko määrän tai osan. Jos B:llä on 20 kaapelia ja C ottaa 12, loput 8 palaavat B:ltä studiolle. Lähderivillä on enintään yksi vastaanottaja: sovellus ei tarjoa jo varattua lähderiviä, ja jos voimassa olevilla keikoilla on silti useampi, kaikki merkitään "ei täsmää".
-- **Rivin oma aika** pysyy kalustojakson sisällä: _kalusto lähtee ≤ rivin alku < rivin loppu ≤ kalusto takaisin_. **Poikkeus:** suoran siirron rivin varaus alkaa luovutushetkestä, joka saa olla ennen tämän keikan kaluston lähtöä (laite odottaa vastaanottavalla keikalla). Vastaanottavalla rivillä `start` tarkoittaa "tarvitaan alkaen" ja vaikuttaa vain pelivaraan.
+- **Rivin oma aika** pysyy kalustojakson sisällä: _kalusto lähtee ≤ rivin alku < rivin loppu ≤ kalusto takaisin_. **Poikkeus:** suoran siirron rivin varaus alkaa luovutushetkestä, joka saa olla ennen tämän keikan kaluston lähtöä (laite odottaa vastaanottavalla keikalla). Vastaanottavalla rivillä `start` tarkoittaa "tarvitaan alkaen": se määrää pelivaran, ja jos siirto ei täsmää, siitä tulee rivin varauksen alku. Siksi se pysyy kalustojakson sisällä kuten muutkin omat ajat; vain luovutushetki saa olla ennen kaluston lähtöä.
 - **Rivin oma Lähti ja Palautettu** (`lineMarks`): myöhemmin lähtevä rivi (oma alku) ja aiemmin palaava rivi (oma loppu) merkitään erikseen. Muut rivit seuraavat keikan merkintöjä.
 - **`awaitingReturn`** = kohde ei ole oma studio, keikka on vahvistettu tai lähtenyt, eikä keikkaa ole merkitty palautetuksi. Keikan Palautettu kattaa myös aiemmin palaavat rivit, joita ei ole merkitty erikseen.
 - **Ladataan** koko kalusto, kohteet, paketit ja käyttäjät, keikat joiden `equipEnd` on viimeisten 60 päivän aikana tai tulevaisuudessa, sekä keikat joilla `awaitingReturn == true`. Laitekortin historia lasketaan näistä, joten yhdistelmäindeksejä ei tarvita.
@@ -274,12 +274,12 @@ Logiikka on kansiossa `src/core`: puhtaita funktioita ilman Firebase- ja React-r
 3. **Rivin varaus** alkaa kelvollisen suoran siirron luovutuksesta, muuten rivin omasta alusta tai kaluston lähdöstä, ja päättyy rivin omaan loppuun tai kaluston paluuseen. Lähderivillä vastaanottajan ottama määrä päättyy luovutukseen ja loput rivin loppuun.
 4. **Suora siirto on kelvollinen**, jos molemmat keikat ovat voimassa, lähderivi on olemassa samalla laitteella, määrä riittää, lähderivillä on voimassa olevilla keikoilla täsmälleen yksi vastaanottaja, `from`-ketjussa ei ole kehää, _lähderivin alku < luovutus ≤ lähderivin loppu_ sekä _luovutus < B:n tapahtuman loppu_ ja _luovutus < vastaanottavan rivin loppu_. Luovutus voi siis olla myös kesken monipäiväisen keikan. Muuten siirto ohitetaan ja merkitään "ei täsmää".
 5. **Palauttamaton kalusto varaa toistaiseksi**, kun keikka ei ole omassa studiossa, on vahvistettu, valmis tai lähtenyt, rivi ei ole palautettu ja _nyt ≥ rivin loppu_. Aiemmin palaavan rivin (oma loppu) palautus merkitään rivikohtaisesti (`lineMarks`), muut keikan Palautettu-merkinnällä; keikan Palautettu kattaa myös merkitsemättömät aiemmin palaavat rivit. Ennen loppua merkitty palautus päättää varauksen.
-6. **Kunto** Huollossa tai Rikki varaa koko määrän paluuaikaan asti tai toistaiseksi. Arkistoidun kapasiteetti on 0. Peruttu keikka ei vaikuta, ellei se ole lähtenyt ja palauttamatta.
+6. **Kunto** Huollossa tai Rikki varaa koko määrän paluuaikaan asti tai toistaiseksi. Arkistoidun kapasiteetti on 0, eikä arkistoidun laitteen kunto synnytä päällekkäisyyttä. Peruttu keikka ei vaikuta, ellei se ole lähtenyt ja palauttamatta.
 7. **Vakavuus** lasketaan jokaiselle aikajaksolle erikseen. **Päällekkäin (punainen):** ylitys syntyy jo vahvistetuista, valmiista ja lähteneistä keikoista, kunnosta ja palauttamattomasta kalustosta. **Varoitus (keltainen):** alustavat keikat aiheuttavat ylityksen tai lisäävät sitä.
 8. **Pelivara** = _tarvitaan − luovutus − ajoaika_, missä _tarvitaan_ on vastaanottavan rivin "tarvitaan alkaen" tai B:n tapahtuman alku. Alle 0 näytetään punaisena "Ei ehdi". Jos luovutus on B:n tapahtuman alun jälkeen eikä "tarvitaan alkaen" ole annettu, näytetään "Saapuu kesken tapahtuman klo X" ilman punaista. Pelivara ei estä tallennusta.
-9. **Ensin vahvistanut voittaa (L5):** keltaiset varoitukset eivät estä mitään, joten alustava keikka tallentuu niistä huolimatta. Tallennus estetään, jos se synnyttää **uuden** punaisen yhdistelmän (laite + kilpailijat tai kunto). Tavallisesti näin käy vain vahvistetulla tai vahvistettavalla keikalla, mutta myös alustavan keikan suoran siirron muutos voi pidentää vahvistetun lähderivin varausta, joten tarkistus tehdään jokaiselle keikan tallennukselle. "Ennen" on tallennettu tilanne, "jälkeen" tilanne muutoksen kanssa, molemmat samalla hetkellä. Olemassa oleva päällekkäisyys ei estä muita muutoksia.
+9. **Ensin vahvistanut voittaa (L5):** keltaiset varoitukset eivät estä mitään, joten alustava keikka tallentuu niistä huolimatta. Tallennus estetään, jos se synnyttää **uuden** punaisen yhdistelmän (laite + kilpailijat tai kunto). Tavallisesti näin käy vain vahvistetulla tai vahvistettavalla keikalla, mutta myös alustavan keikan suoran siirron muutos voi pidentää vahvistetun lähderivin varausta, joten tarkistus tehdään jokaiselle keikan tallennukselle. "Ennen" on tallennettu tilanne, "jälkeen" tilanne muutoksen kanssa, molemmat samalla hetkellä. Punainen jakso on **vanha**, jos samalla laitteella oli ennen ajallisesti päällekkäinen punainen jakso, jonka lähteet sisältävät kaikki sen lähteet. Olemassa oleva päällekkäisyys ei siis estä muita muutoksia, kolmen keikan päällekkäisyydestä poistumista eikä sen lyhentämistä, mutta sama pari uudella, erillisellä ajalla estetään.
 10. **Faktojen kirjaamista ei estetä:** kunto, Lähti, Palautettu ja Siirretty tänne tallentuvat aina, ja seuraukset näkyvät päällekkäisyyksinä. Myöskään perumista ei estetä päällekkäisyyksien takia.
-11. **Suoran siirron ehdotus** näytetään, kun rivi osuu saman laitteen varaukseen keikalla, jonka tapahtuma alkaa ennen tämän keikan tapahtumaa. Luovutuksen oletus on lähdekeikan tapahtuman loppu + 60 min; jos se rikkoo säännön 4 (lähderivin lopun jälkeen tai ≥ tämän keikan tapahtuman loppu, esim. monipäiväinen lähdekeikka), oletus on tämän keikan kaluston lähtö. Käyttäjä muuttaa sen tarvittaessa (luvussa 4.6 ma 18.00).
+11. **Suoran siirron ehdotus** näytetään, kun rivi osuu saman laitteen varaukseen keikalla, jonka tapahtuma alkaa ennen tämän keikan tapahtumaa. Luovutuksen oletus on ensimmäinen sääntöön 4 sopiva näistä: lähdekeikan tapahtuman loppu + 60 min, lähderivin loppu tai tämän keikan kaluston lähtö (esim. monipäiväinen lähdekeikka). Jos mikään ei sovi, kenttä jää tyhjäksi ja käyttäjä syöttää sen. Käyttäjä muuttaa sen tarvittaessa (luvussa 4.6 ma 18.00).
 12. **Rivin oma aika** ei saa ylittää keikan kalustojaksoa (lomake). Poikkeus: suoran siirron luovutus saa olla ennen kaluston lähtöä.
 
 ### 5.2 Pseudokoodi
@@ -340,7 +340,7 @@ function lineDemands(g: Gig, l: Line, x: Ctx): Demand[] {
 
 function demandsFor(it: Item, x: Ctx): Demand[] {
   const d =
-    it.condition === 'ok'
+    it.condition === 'ok' || it.archived // arkistoidun kapasiteetti on jo 0
       ? []
       : [
           {
@@ -381,18 +381,27 @@ function segments(it: Item, ds: Demand[]): Seg[] {
   return mergeAdjacent(out)
 }
 
-// Punainen yhdistelmä, esim. 'KAM-01|B,W' tai 'KAM-04|B,D'; srcs() palauttaa lajitellut, yksilölliset id:t
-const redKeys = (x: Ctx) =>
+// Punaiset jaksot; srcs() palauttaa lajitellut, yksilölliset id:t
+const redSegments = (x: Ctx) =>
   x.items.flatMap((it) =>
     segments(it, demandsFor(it, x))
       .filter((s) => s.red)
-      .map((s) => `${it.id}|${s.redSrcs.join(',')}`),
+      .map((s) => ({ itemId: it.id, start: s.start, end: s.end, srcs: s.redSrcs })),
   )
 
-// Sääntö 9: jokaiselle keikan tallennukselle (ei perumiselle eikä säännön 10 faktoille), sama now
-function blockingOnSave(before: Ctx, after: Ctx): string[] {
-  const old = new Set(redKeys(before))
-  return redKeys(after).filter((k) => !old.has(k))
+// Sääntö 9: jokaiselle keikan tallennukselle (ei perumiselle eikä säännön 10 faktoille), sama now.
+// Jakso on vanha, jos samalla laitteella oli ajallisesti päällekkäinen punainen jakso,
+// jonka lähteet sisältävät kaikki sen lähteet. Palauttaa uudet yhdistelmät, esim. 'KAM-01|B,W'.
+function blockingOnSave(before: RedSeg[], after: RedSeg[]): string[] {
+  const existed = (a: RedSeg) =>
+    before.some(
+      (b) =>
+        b.itemId === a.itemId &&
+        b.start < a.end &&
+        a.start < b.end &&
+        a.srcs.every((x) => b.srcs.includes(x)),
+    )
+  return unique(after.filter((a) => !existed(a)).map((a) => `${a.itemId}|${a.srcs.join(',')}`))
 }
 ```
 
@@ -419,8 +428,9 @@ Testit ajetaan myös asetuksilla `TZ=UTC` ja `TZ=America/New_York`, jotta koodi 
 - **Missä nyt:** luvun 4.5 kohdat.
 - **Monipäiväinen (luku 4.6):** KAM-01:n luovutus ma 18.00 kesken Messujen on kelvollinen ja pelivara 14 h 30 min; ilman siirtoa KAM-01 on punainen Studiohaastattelun kanssa; PTZ-03 on vapaa ma 19.00 alkaen, kun rivi on merkitty palautetuksi, ja merkitsemättä (now = ti 9.00) punainen tiistain vahvistetulle keikalle; keikan Palautettu kattaa merkitsemättömän rivin; myöhemmin lähtevä rivi on "Oma studio, lähdössä" ennen rivin Lähti-merkintää; luovutus ennen lähderivin alkua tai sen oman lopun jälkeen → "ei täsmää"; rivin oma aika jakson ulkopuolella hylätään, mutta luovutus ennen kaluston lähtöä hyväksytään.
 - **Aika:** keikka la 27.3.2027 14.00 – ma 29.3. 12.00 = **45 h**; 28.3.2027 klo 3.30 hylätään; 31.10.2027 klo 3.30 = 00.30 UTC; taulun päivä 28.3.2027 on 23 h ja 31.10.2027 25 h; "ti 1.12.2026 klo 9.00", "vk 49".
+- **Katselmoinnin regressiot:** "tarvitaan alkaen" kalustojakson ulkopuolella hylätään; määrätavaralla saa olla useita rivejä, laitteella ei; arkistoitu tai määrää pienennetty laite ei estä vanhan rivin tallennusta; arkistoidun laitteen kunto ei ole päällekkäisyys; kolmen keikan päällekkäisyydestä poistuminen ja sen lyhentäminen eivät esty; luovutus tasan lähderivin alussa ei täsmää; oletusluovutus putoaa lähderivin loppuun tai jää tyhjäksi; vuodet 2000–2100.
 - **Valinnainen fast-check:** satunnaisilla varauksilla `segments` antaa joka minuutille saman vakavuuden kuin minuuttikohtainen laskenta.
-- **Säännöt (emulaattori):** listalla oleva pääsee, listaamaton ei lue eikä kirjoita, isoja kirjaimia sisältävä osoite löytää pienikirjaimisen dokumentin.
+- **Säännöt (emulaattori):** listalla oleva pääsee, listaamaton ei lue eikä kirjoita, isoja kirjaimia sisältävä osoite löytää pienikirjaimisen dokumentin; kalustoa ja vahvistettua keikkaa ei voi poistaa; omaa osoitetta ei voi poistaa listalta; väärässä järjestyksessä olevat ajat ja puuttuva `updatedBy`/`updatedAt` hylätään; muut polut on kielletty.
 
 ---
 
@@ -428,17 +438,20 @@ Testit ajetaan myös asetuksilla `TZ=UTC` ja `TZ=America/New_York`, jotta koodi 
 
 ### 6.1 Kirjastot
 
-| Kerros       | Valinta                                                                                   | Lisenssi           |
-| ------------ | ----------------------------------------------------------------------------------------- | ------------------ |
-| Sovellus     | Vite + React 19 + TypeScript (strict), React Router                                       | MIT; TS Apache-2.0 |
-| UI           | Mantine 9.8 (`core`, `dates`, `form`, `notifications`)                                    | MIT                |
-| Kalenteri    | FullCalendar Standard 7.1 (`fi`, `timeZone: 'Europe/Helsinki'`, peer `temporal-polyfill`) | MIT                |
-| Kalustotaulu | Oma CSS-grid-komponentti                                                                  | –                  |
-| Päivämäärät  | dayjs 1.11 + `isoWeek`, `fi` muotoiluun; vyöhykemuunnokset omilla `Intl`-apufunktioilla   | MIT                |
-| Firebase     | JS SDK 13 (Auth, Firestore)                                                               | Apache-2.0         |
-| Testit       | Vitest, Emulator Suite, `@firebase/rules-unit-testing`, valinnaisesti fast-check          | MIT, Apache-2.0    |
+| Kerros           | Valinta                                                                                   | Lisenssi           |
+| ---------------- | ----------------------------------------------------------------------------------------- | ------------------ |
+| Sovellus         | Vite + React 19 + TypeScript (strict), React Router                                       | MIT; TS Apache-2.0 |
+| UI               | Mantine 9.8 (`core`, `dates`, `form`, `notifications`)                                    | MIT                |
+| Kalenteri        | FullCalendar Standard 7.1 (`fi`, `timeZone: 'Europe/Helsinki'`, peer `temporal-polyfill`) | MIT                |
+| Kalustotaulu     | Oma CSS-grid-komponentti                                                                  | –                  |
+| Päivämäärät      | Omat `Intl`-pohjaiset apufunktiot (`src/core/time.ts`), ei päivämääräkirjastoa            | –                  |
+| Tiedon tarkistus | Zod 4, vain `src/data` (ei `src/core`)                                                    | MIT                |
+| Laatu            | TypeScript 7 (strict, `exactOptionalPropertyTypes`), oxlint tyyppitietoisena, Prettier    | MIT                |
+| Ajoympäristö     | Node 24 LTS, pnpm 10 (`minimumReleaseAge` 3 pv), Dependabot                               | –                  |
+| Firebase         | JS SDK 13 (Auth, Firestore)                                                               | Apache-2.0         |
+| Testit           | Vitest, Emulator Suite, `@firebase/rules-unit-testing`, valinnaisesti fast-check          | MIT, Apache-2.0    |
 
-Yksi sovellus: puhdas logiikka `src/core`, Firebase ja reaaliaikaiset kuuntelijat `src/data`, näkymät `src/views`, tekstit `src/fi.ts`.
+Yksi sovellus: puhdas logiikka `src/core`, Firebase ja reaaliaikaiset kuuntelijat `src/data`, näkymät `src/views`, tekstit `src/fi.ts`. `src/data` validoi jokaisen luetun ja kirjoitettavan dokumentin kokoelmakohtaisella Zod-skeemalla ja muuntaa `Timestamp`-arvot millisekunneiksi; `src/core` ei tuo Zodia, Firebasea eikä Reactia, ja oxlint valvoo tätä.
 
 ### 6.2 Firebasen käyttöönotto
 
@@ -446,7 +459,7 @@ Yksi sovellus: puhdas logiikka `src/core`, Firebase ja reaaliaikaiset kuuntelija
 2. **Authentication → Google.** Projektin `<id>.web.app`, `<id>.firebaseapp.com` ja `localhost` ovat valmiiksi sallittuja; vain oma verkkotunnus pitäisi lisätä.
 3. **`signInWithPopup`**, koska redirect ei toimi selaimissa, jotka estävät kolmannen osapuolen tallennuksen. `authDomain` asetetaan sovelluksen omaksi osoitteeksi (`<id>.web.app`).
 4. **Ensimmäinen `allowedUsers`-dokumentti** luodaan konsolissa, muut Asetuksissa. Osoite kirjoitetaan pienillä kirjaimilla niin kuin Google-tili sen näyttää. Viimeistä käyttäjää ei voi poistaa. Listaamaton näkee: "Osoitetta x@gmail.com ei ole listalla. Pyydä joku tiimistä lisäämään se."
-5. **Hosting** ohjaa kaikki reitit `index.html`-tiedostoon. Kehitys tehdään emulaattoreilla.
+5. **Hosting** ohjaa kaikki reitit `index.html`-tiedostoon. `index.html` ei jää välimuistiin (`Cache-Control: no-cache`), tiivisteelliset `/assets/**`-tiedostot saavat pitkän välimuistin (`max-age=31536000, immutable`), ja mukana ovat turvaotsakkeet `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` ja `Cross-Origin-Opener-Policy: same-origin-allow-popups` (Google-popup toimii). CSP otetaan ensin käyttöön vain raportoivana (`Content-Security-Policy-Report-Only`). Jos julkaisun jälkeen avoin välilehti ei löydä vanhaa koodipalaa, sovellus latautuu uudelleen (`vite:preloadError`). Kehitys tehdään emulaattoreilla.
 
 ### 6.3 Tietoturvasäännöt
 
@@ -460,12 +473,49 @@ service cloud.firestore {
         && request.auth.token.email_verified == true
         && exists(/databases/$(db)/documents/allowedUsers/$(request.auth.token.email.lower()));
     }
-    match /{document=**} { allow read, write: if allowed(); }
+    function d() { return request.resource.data; }
+    function stamped() {
+      return d().updatedBy == request.auth.token.email.lower() && d().updatedAt == request.time;
+    }
+    function validItem() {
+      return d().tag is string && d().tag.size() > 0 && d().name is string
+        && d().quantity is int && d().quantity >= 1
+        && d().condition in ['ok', 'huollossa', 'rikki'] && d().archived is bool && stamped();
+    }
+    function validGig() {
+      return d().status in ['alustava', 'vahvistettu', 'valmis', 'peruttu']
+        && d().equipStart is timestamp && d().eventStart is timestamp
+        && d().eventEnd is timestamp && d().equipEnd is timestamp
+        && d().equipStart <= d().eventStart && d().eventStart < d().eventEnd
+        && d().eventEnd <= d().equipEnd
+        && d().lines is list && d().lines.size() <= 300
+        && d().awaitingReturn is bool && stamped();
+    }
+
+    match /allowedUsers/{email} {
+      allow read: if allowed();
+      allow create, update: if allowed() && email == email.lower();
+      allow delete: if allowed() && email != request.auth.token.email.lower(); // ei itseään
+    }
+    match /settings/{doc}      { allow read, write: if allowed(); }
+    match /locations/{id}      { allow read, create, update: if allowed(); allow delete: if false; }
+    match /packages/{id}       { allow read, write: if allowed(); }
+    match /items/{id} {
+      allow read: if allowed();
+      allow create, update: if allowed() && validItem();
+      allow delete: if false; // arkistoidaan
+    }
+    match /gigs/{id} {
+      allow read: if allowed();
+      allow create, update: if allowed() && validGig();
+      allow delete: if allowed() && resource.data.status == 'alustava'; // muuten perutaan
+    }
+    // Kaikki muu on oletuksena kielletty.
   }
 }
 ```
 
-Muita sääntöjä ei tarvita, koska rooleja ei ole.
+Rooleja ei ole, joten säännöt rajaavat pääsyn sallittujen listaan, estävät poistot (kalusto arkistoidaan, vahvistettu keikka perutaan) ja tarkistavat tärkeimmät tietotyypit ja aikajärjestyksen. Tarkempi rakenne tarkistetaan Zod-skeemoilla `src/data`-kerroksessa.
 
 ### 6.4 Varmuuskopiot
 
@@ -557,7 +607,7 @@ Avoimia kysymyksiä ei ole. Ennen vaihetta 1a tarvitaan vain Firebase-projekti, 
 - Kaksipuolinen ketjulinkki ja kahden keikan transaktio → linkki vain vastaanottavalla rivillä.
 - Huonehierarkia ja neliömetrit → kohde ja tilalista.
 - Storage, pakollinen Blaze ja palautusharjoitukset → Spark, JSON-kopio, valinnaiset ajastetut kopiot.
-- 13 näkymää → 6 ja Asetukset. Kategorialista, "Alustavat mukana" -valinta, "Tiukka"-pelivara, Zod ja yhdistelmäindeksit pois.
+- 13 näkymää → 6 ja Asetukset. Kategorialista, "Alustavat mukana" -valinta, "Tiukka"-pelivara ja yhdistelmäindeksit pois.
 - Rentman-kokeilu ja kustannusvertailu → yksi kappale.
 
 **Säilytetty tarkoituksella:**

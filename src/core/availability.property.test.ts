@@ -20,7 +20,6 @@ const demandArb = fc
     qty,
     firm,
     src,
-    late: false,
   }))
 
 function bruteForce(capacity: number, demands: Demand[], t: number) {

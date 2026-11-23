@@ -51,6 +51,14 @@ describe('Helsinki wall clock ↔ instant', () => {
     expect(localToInstant(local(2028, 2, 29)).ok).toBe(true)
   })
 
+  it('rejects years outside 2000–2100 (Date.UTC would remap 0–99 to 1900–1999)', () => {
+    expect(localToInstant(local(26, 12, 1, 9, 0))).toEqual({ ok: false, reason: 'invalid' })
+    expect(parseDate('0026-12-01')).toBeNull()
+    expect(parseDate('0202-12-01')).toBeNull()
+    expect(parseDate('2100-12-31')).not.toBeNull()
+    expect(parseDate('2101-01-01')).toBeNull()
+  })
+
   it('round-trips instants across a whole year in 15-minute steps', () => {
     const start = Date.UTC(2026, 0, 1)
     for (let ms = start; ms < start + 366 * 24 * HOUR; ms += 15 * MINUTE) {
