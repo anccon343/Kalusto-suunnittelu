@@ -35,3 +35,7 @@ coverage
 firebase-debug.log*
 firestore-debug.log*
 ui-debug.log*
+
+# Claude Code local state (temporary worktrees, personal settings)
+.claude/worktrees/
+.claude/settings.local.json
