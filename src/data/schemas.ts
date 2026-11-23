@@ -48,7 +48,10 @@ const marks = {
 export const allowedUserSchema = z.object({
   name: name(100),
   initials: name(4),
-  ...meta,
+  // Optional on read: the first user is created by hand in the Firebase console
+  // (plan 6.2). App writes are always stamped; the rules require it.
+  updatedAt: ms.exactOptional(),
+  updatedBy: z.string().exactOptional(),
 })
 
 export const settingsSchema = z.object({
@@ -159,7 +162,13 @@ function parseWith<S extends z.ZodType, T>(
 }
 
 export const parseAllowedUser = (id: string, data: unknown): Parsed<Stored<AllowedUser>> =>
-  parseWith(allowedUserSchema, 'allowedUsers', id, data, (v) => ({ email: id, ...v }))
+  parseWith(allowedUserSchema, 'allowedUsers', id, data, (v) => ({
+    email: id,
+    name: v.name,
+    initials: v.initials,
+    updatedAt: v.updatedAt ?? 0,
+    updatedBy: v.updatedBy ?? '',
+  }))
 
 export const parseSettings = (id: string, data: unknown): Parsed<AppSettings> =>
   parseWith(settingsSchema, 'settings', id, data, (v) =>
@@ -263,8 +272,11 @@ export function packageToWire(p: PackageInput): Wire {
   return { name: p.name, lines: p.lines.map((l) => ({ itemId: l.itemId, qty: l.qty })) }
 }
 
-/** `awaitingReturn` is derived (core `computeAwaitingReturn`) and must be passed in. */
-export function gigToWire(g: GigInput, awaitingReturn: boolean): Wire {
+/**
+ * The gig as written by the app. The derived `awaitingReturn` is not included; the
+ * write functions compute it from the document as it will be after the write.
+ */
+export function gigToWire(g: GigInput): Wire {
   return compact({
     name: g.name,
     client: g.client,
@@ -284,7 +296,43 @@ export function gigToWire(g: GigInput, awaitingReturn: boolean): Wire {
     lineMarks: g.lineMarks
       ? Object.fromEntries(Object.entries(g.lineMarks).map(([k, m]) => [k, marksToWire(m)]))
       : undefined,
-    awaitingReturn,
     ...marksToWire(g),
   })
+}
+
+export function allowedUserToWire(u: Pick<AllowedUser, 'name' | 'initials'>): Wire {
+  return { name: u.name.trim(), initials: u.initials.trim().toUpperCase() }
+}
+
+// ---------------------------------------------------------------------------
+// Validation before writing (plan 6.1): what the app writes must be readable.
+// ---------------------------------------------------------------------------
+
+const noMeta = { updatedAt: true, updatedBy: true } as const
+
+const writeSchemas = {
+  allowedUsers: allowedUserSchema.omit(noMeta),
+  locations: locationSchema.omit(noMeta),
+  items: itemSchema.omit(noMeta),
+  packages: packageSchema.omit(noMeta),
+  gigs: gigSchema.omit(noMeta),
+} as const
+
+export type WritableCollection = keyof typeof writeSchemas
+
+export class ValidationError extends Error {
+  readonly collection: WritableCollection
+  readonly issues: string
+  constructor(collection: WritableCollection, issues: string) {
+    super(`${collection}: ${issues}`)
+    this.name = 'ValidationError'
+    this.collection = collection
+    this.issues = issues
+  }
+}
+
+/** Throws `ValidationError` if a document would be rejected when read back. */
+export function assertWritable(collection: WritableCollection, wire: Wire): void {
+  const r = writeSchemas[collection].safeParse(wire)
+  if (!r.success) throw new ValidationError(collection, z.prettifyError(r.error))
 }

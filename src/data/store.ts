@@ -170,9 +170,21 @@ export class DataStore {
       items: values<Stored<Item>>('items'),
       packages: values<Stored<Package>>('packages'),
       gigs: [...gigs.values()],
-      issues: [...this.issueByKey.values()].flat(),
+      issues: this.dedupedIssues(gigs),
     }
     this.emit()
+  }
+
+  /** One entry per document; a gig valid in one listener is not reported from the other. */
+  private dedupedIssues(validGigs: ReadonlyMap<string, unknown>): DataIssue[] {
+    const issues = new Map<string, DataIssue>()
+    for (const list of this.issueByKey.values()) {
+      for (const issue of list) {
+        if (issue.collection === 'gigs' && validGigs.has(issue.id)) continue
+        issues.set(`${issue.collection}/${issue.id}`, issue)
+      }
+    }
+    return [...issues.values()]
   }
 
   private fail(e: unknown): void {

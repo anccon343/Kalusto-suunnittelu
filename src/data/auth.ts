@@ -15,6 +15,9 @@ import {
 } from 'firebase/auth'
 import { doc, getDoc, type Firestore } from 'firebase/firestore'
 import { FirebaseError } from 'firebase/app'
+import { normalizeEmail } from './email'
+
+export { normalizeEmail }
 
 export type AuthState =
   | { status: 'loading' }
@@ -44,11 +47,6 @@ export async function signInWithGoogle(auth: Auth): Promise<SignInResult> {
 
 export function signOut(auth: Auth): Promise<void> {
   return firebaseSignOut(auth)
-}
-
-/** Lower-cased email used as the allowlist key and as `updatedBy`. */
-export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase()
 }
 
 async function checkAllowed(db: Firestore, user: User): Promise<AuthState> {

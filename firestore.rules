@@ -39,6 +39,9 @@ service cloud.firestore {
       return !d().keys().hasAny([field]) || (d()[field] is string && d()[field].size() <= max);
     }
 
+    // The field lists below must match src/data/schemas.ts. A new field is added to
+    // these rules and deployed before any client that writes it.
+
     function validUser() {
       return d().keys().hasOnly(['name', 'initials', 'updatedAt', 'updatedBy'])
         && shortString(d().name, 100)
@@ -47,7 +50,9 @@ service cloud.firestore {
     }
 
     function validLocation() {
-      return shortString(d().name, 120)
+      return d().keys().hasOnly(['name', 'isOwnStudio', 'rooms', 'address', 'loadingNotes',
+          'contact', 'archived', 'updatedAt', 'updatedBy'])
+        && shortString(d().name, 120)
         && d().isOwnStudio is bool
         && d().rooms is list && d().rooms.size() <= 50
         && d().archived is bool
@@ -58,29 +63,43 @@ service cloud.firestore {
     }
 
     function validItem() {
-      return shortString(d().tag, 20)
+      return d().keys().hasOnly(['tag', 'name', 'category', 'manufacturer', 'model', 'quantity',
+          'serialNo', 'condition', 'conditionUntil', 'homeLocationId', 'responsible', 'notes',
+          'locationOverride', 'archived', 'updatedAt', 'updatedBy'])
+        && shortString(d().tag, 20)
         && shortString(d().name, 120)
         && d().category is string && d().category.size() <= 60
         && d().quantity is int && d().quantity >= 1 && d().quantity <= 100000
         && d().condition in ['ok', 'huollossa', 'rikki']
         && (!d().keys().hasAny(['conditionUntil']) || d().conditionUntil is timestamp)
-        && d().homeLocationId is string
+        && shortString(d().homeLocationId, 100)
         && d().archived is bool
+        && optionalString('manufacturer', 80)
+        && optionalString('model', 80)
+        && optionalString('serialNo', 80)
         && optionalString('notes', 2000)
         && stamped();
     }
 
     function validPackage() {
-      return shortString(d().name, 120)
+      return d().keys().hasOnly(['name', 'lines', 'updatedAt', 'updatedBy'])
+        && shortString(d().name, 120)
         && d().lines is list && d().lines.size() <= 300
         && stamped();
     }
 
     function validGig() {
-      return shortString(d().name, 120)
+      return d().keys().hasOnly(['name', 'client', 'locationId', 'room', 'responsible', 'crew',
+          'notes', 'status', 'confirmedAt', 'confirmedBy', 'equipStart', 'eventStart', 'eventEnd',
+          'equipEnd', 'lines', 'lineMarks', 'awaitingReturn', 'departedAt', 'departedBy',
+          'returnedAt', 'returnedBy', 'updatedAt', 'updatedBy'])
+        && shortString(d().name, 120)
         && d().status in ['alustava', 'vahvistettu', 'valmis', 'peruttu']
-        && d().locationId is string
+        && shortString(d().locationId, 100)
         && d().responsible is string
+        && optionalString('client', 120)
+        && optionalString('room', 80)
+        && (!d().keys().hasAny(['lineMarks']) || (d().lineMarks is map && d().lineMarks.size() <= 300))
         && d().crew is list && d().crew.size() <= 20
         && d().equipStart is timestamp && d().eventStart is timestamp
         && d().eventEnd is timestamp && d().equipEnd is timestamp
@@ -100,9 +119,31 @@ service cloud.firestore {
       allow delete: if allowed() && email != signedInEmail();
     }
 
+    function validSettings() {
+      return d().keys().hasOnly(['lastBackupAt', 'updatedAt', 'updatedBy'])
+        && (!d().keys().hasAny(['lastBackupAt']) || d().lastBackupAt is timestamp)
+        && stamped();
+    }
+
+    // Lähti / Palautettu are facts: once recorded they cannot be changed or removed.
+    function keptIfSet(f) {
+      return !(f in resource.data) || (f in d() && d()[f] == resource.data[f]);
+    }
+
+    function marksKept() {
+      return keptIfSet('departedAt') && keptIfSet('departedBy')
+        && keptIfSet('returnedAt') && keptIfSet('returnedBy');
+    }
+
+    // Equipment has left and has not come back.
+    function isOut(x) {
+      return ('departedAt' in x) && !('returnedAt' in x);
+    }
+
     match /settings/{docId} {
       allow read: if allowed();
-      allow write: if allowed() && docId == 'app' && stamped();
+      allow create, update: if allowed() && docId == 'app' && validSettings();
+      allow delete: if false;
     }
 
     match /locations/{locationId} {
@@ -125,9 +166,15 @@ service cloud.firestore {
 
     match /gigs/{gigId} {
       allow read: if allowed();
-      allow create, update: if allowed() && validGig();
-      // Only tentative gigs are deleted; others are cancelled so history stays intact.
-      allow delete: if allowed() && resource.data.status == 'alustava';
+      allow create: if allowed() && validGig();
+      // Marks stay as recorded, and a gig whose equipment is out cannot be made
+      // tentative or cancelled before it is returned (plan 4.5).
+      allow update: if allowed() && validGig() && marksKept()
+        && !(isOut(d()) && d().status in ['alustava', 'peruttu']);
+      // Only tentative gigs that never left are deleted; others are cancelled so
+      // history stays intact.
+      allow delete: if allowed() && resource.data.status == 'alustava'
+        && !('departedAt' in resource.data);
     }
   }
 }

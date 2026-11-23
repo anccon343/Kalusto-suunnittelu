@@ -2,7 +2,16 @@ import { Timestamp } from 'firebase/firestore'
 import { describe, expect, it } from 'vitest'
 import { gigBResolved, gigE, items } from '../core/__fixtures__/scenario'
 import type { Gig, Item } from '../core/types'
-import { compact, gigToWire, itemToWire, parseGig, parseItem } from './schemas'
+import {
+  assertWritable,
+  compact,
+  gigToWire,
+  itemToWire,
+  parseAllowedUser,
+  parseGig,
+  parseItem,
+  ValidationError,
+} from './schemas'
 import { changedKeys, deepEqual } from './writes'
 
 const meta = { updatedAt: Timestamp.fromMillis(1_700_000_000_000), updatedBy: 'anna@example.com' }
@@ -45,7 +54,7 @@ describe('items: wire format round trip', () => {
 describe('gigs: wire format round trip', () => {
   const roundTrip = (g: Gig) => {
     const { id, ...input } = g
-    return parseGig(id, { ...gigToWire(input, true), ...meta })
+    return parseGig(id, { ...gigToWire(input), awaitingReturn: true, ...meta })
   }
 
   it('keeps lines, direct transfers and own times', () => {
@@ -96,5 +105,33 @@ describe('change detection helpers', () => {
 
   it('compact drops undefined values only', () => {
     expect(compact({ a: 0, b: '', c: undefined, d: null })).toEqual({ a: 0, b: '', d: null })
+  })
+})
+
+describe('review regressions', () => {
+  it('a user created by hand in the console (no stamps) is readable', () => {
+    expect(parseAllowedUser('anna@example.com', { name: 'Anna', initials: 'AN' })).toEqual({
+      ok: true,
+      value: {
+        email: 'anna@example.com',
+        name: 'Anna',
+        initials: 'AN',
+        updatedAt: 0,
+        updatedBy: '',
+      },
+    })
+  })
+
+  it('assertWritable rejects what reading would reject', () => {
+    const { id: _id, ...b } = gigBResolved()
+    const wire = { ...gigToWire(b), awaitingReturn: true }
+    expect(() => assertWritable('gigs', wire)).not.toThrow()
+    expect(() =>
+      assertWritable('gigs', { ...wire, lines: [{ id: '', itemId: 'x', qty: 0 }] }),
+    ).toThrow(ValidationError)
+    const { id: _i, ...item } = items[0]!
+    expect(() => assertWritable('items', { ...itemToWire(item), homeLocationId: '' })).toThrow(
+      ValidationError,
+    )
   })
 })

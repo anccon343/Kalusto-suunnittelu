@@ -236,3 +236,76 @@ describe('settings', () => {
     await assertFails(setDoc(doc(db, 'settings', 'other'), { ...stamp(ANNA) }))
   })
 })
+
+describe('review regressions', () => {
+  const departed = (extra: Record<string, unknown> = {}) =>
+    gig('jussi@example.com', {
+      status: 'vahvistettu',
+      departedAt: ts('2026-11-30T12:10:00Z'),
+      departedBy: 'jussi@example.com',
+      awaitingReturn: true,
+      ...extra,
+    })
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore() as unknown as Firestore
+      await setDoc(doc(db, 'gigs', 'out'), departed())
+      await setDoc(doc(db, 'gigs', 'outTentative'), departed({ status: 'alustava' }))
+    })
+  })
+
+  it('a departed, unreturned gig cannot be made tentative, cancelled or deleted', async () => {
+    const db = signedIn(ANNA)
+    await assertFails(updateDoc(doc(db, 'gigs', 'out'), { status: 'alustava', ...stamp(ANNA) }))
+    await assertFails(updateDoc(doc(db, 'gigs', 'out'), { status: 'peruttu', ...stamp(ANNA) }))
+    await assertFails(deleteDoc(doc(db, 'gigs', 'outTentative')))
+  })
+
+  it('marks cannot be removed or changed once recorded', async () => {
+    const db = signedIn(ANNA)
+    await assertFails(setDoc(doc(db, 'gigs', 'out'), gig(ANNA, { status: 'alustava' })))
+    await assertFails(updateDoc(doc(db, 'gigs', 'out'), { departedBy: ANNA, ...stamp(ANNA) }))
+  })
+
+  it('Palautettu is accepted, and after it the gig can be cancelled', async () => {
+    const db = signedIn(ANNA)
+    await assertSucceeds(
+      updateDoc(doc(db, 'gigs', 'out'), {
+        returnedAt: serverTimestamp(),
+        returnedBy: ANNA,
+        status: 'valmis',
+        awaitingReturn: false,
+        ...stamp(ANNA),
+      }),
+    )
+    await assertSucceeds(updateDoc(doc(db, 'gigs', 'out'), { status: 'peruttu', ...stamp(ANNA) }))
+  })
+
+  it('rejects unknown fields in every collection', async () => {
+    const db = signedIn(ANNA)
+    await assertFails(setDoc(doc(db, 'items', 'x'), item(ANNA, { junk: 'x' })))
+    await assertFails(setDoc(doc(db, 'gigs', 'x'), gig(ANNA, { junk: 'x' })))
+    await assertFails(
+      setDoc(doc(db, 'locations', 'x'), {
+        name: 'Studio',
+        isOwnStudio: true,
+        rooms: [],
+        archived: false,
+        junk: 'x',
+        ...stamp(ANNA),
+      }),
+    )
+    await assertFails(
+      setDoc(doc(db, 'packages', 'x'), { name: 'P', lines: [], junk: 'x', ...stamp(ANNA) }),
+    )
+    await assertFails(setDoc(doc(db, 'settings', 'app'), { junk: 'x', ...stamp(ANNA) }))
+  })
+
+  it('settings: lastBackupAt must be a time, and the document cannot be deleted', async () => {
+    const db = signedIn(ANNA)
+    await assertFails(setDoc(doc(db, 'settings', 'app'), { lastBackupAt: 'never', ...stamp(ANNA) }))
+    await assertSucceeds(setDoc(doc(db, 'settings', 'app'), { ...stamp(ANNA) }))
+    await assertFails(deleteDoc(doc(db, 'settings', 'app')))
+  })
+})
