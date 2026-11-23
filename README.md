@@ -1,4 +1,4 @@
-# Kalusto
+# Roudari
 
 Sisäinen verkkosovellus AV-kaluston hallintaan ja keikkasuunnitteluun: mikä kalusto menee millekin
 keikalle ja milloin, missä se on, kuka vastaa ja miten se siirtyy keikalta toiselle.

@@ -1,4 +1,4 @@
-# Kalustonhallinta ja keikkasuunnittelu: kevyt suunnitelma
+# Roudari – kalustonhallinta ja keikkasuunnittelu: kevyt suunnitelma
 
 _Laadittu 23.11.2026 (vk 48). Korvaa laajan suunnitelman (`tutkimus/suunnitelma-v1-laaja.md`) ja perustuu käyttäjän vastauksiin: ensimmäinen kierros laajan suunnitelman kysymyksiin ("L1–L6") ja tarkentava kierros (luku 9, "T1–T5"). Kirjastoversiot ovat laajan suunnitelman npm-tarkistuksesta. Firebasen Spark- ja Blaze-erot on tarkistettu 23.11.2026 Firebasen hinnoittelusivulta ja varmuuskopio-ohjeesta. "(tarkista)" = ei varmistettu ensikäden lähteestä._
 
@@ -7,6 +7,8 @@ _Laadittu 23.11.2026 (vk 48). Korvaa laajan suunnitelman (`tutkimus/suunnitelma-
 ## 1. Tiivistelmä
 
 ### 1.1 Mitä rakennetaan
+
+Sovelluksen nimi on **Roudari**. Firebase-projekti: `roudari-97f09` (Spark, europe-north1).
 
 Kevyt, suomenkielinen sisäinen verkkosovellus puhelimelle, tabletille ja läppärille:
 

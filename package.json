@@ -1,8 +1,8 @@
 {
-  "name": "kalusto-suunnittelu",
+  "name": "roudari",
   "private": true,
   "version": "0.1.0",
-  "description": "Kalustonhallinta ja keikkasuunnittelu (sisäinen työkalu)",
+  "description": "Roudari – kalustonhallinta ja keikkasuunnittelu (sisäinen työkalu)",
   "type": "module",
   "packageManager": "pnpm@10.28.0",
   "engines": {
@@ -20,20 +20,25 @@
     "test:watch": "vitest",
     "test:tz": "TZ=UTC vitest run && TZ=America/New_York vitest run && TZ=Europe/Helsinki vitest run --coverage",
     "coverage": "vitest run --coverage",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:tz"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:tz",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-roudari \"vitest run --config vitest.rules.config.ts\"",
+    "emulators": "firebase emulators:start --project demo-roudari"
   },
   "dependencies": {
+    "firebase": "^13.4.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "@vitest/coverage-v8": "^5.1.1",
     "fast-check": "^4.10.3",
+    "firebase-tools": "^15.37.0",
     "oxlint": "^1.94.0",
     "oxlint-tsgolint": "~7.0.2007",
     "prettier": "^3.10.1",

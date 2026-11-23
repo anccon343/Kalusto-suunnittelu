@@ -9,3 +9,11 @@ minimumReleaseAge: 4320
 
 # Fail installation on a Node version other than the one in package.json engines.
 engineStrict: true
+
+# Dependency install scripts are blocked by default. These are deliberately not run:
+# re2 is an optional native regex speed-up for firebase-tools; the @firebase/util and
+# protobufjs postinstall scripts are not needed by this app.
+ignoredBuiltDependencies:
+  - '@firebase/util'
+  - protobufjs
+  - re2

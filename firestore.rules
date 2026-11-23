@@ -1,0 +1,133 @@
+rules_version = '2';
+
+// Roudari – Firestore security rules (plan, section 6.3).
+//
+// Access: a signed-in Google account whose verified email is on the allowlist
+// (allowedUsers/{email in lower case}). There are no roles: every allowed user can
+// read and write everything the app uses. Equipment is archived, not deleted, and
+// only tentative gigs can be deleted (others are cancelled). Anything not matched
+// below is denied. The data layer (src/data) validates full document shapes with
+// Zod; these rules enforce the invariants that must hold even for a buggy client.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedInEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function allowed() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/allowedUsers/$(signedInEmail()));
+    }
+
+    function d() {
+      return request.resource.data;
+    }
+
+    // Every write records who made it, with the server's clock.
+    function stamped() {
+      return d().updatedBy == signedInEmail() && d().updatedAt == request.time;
+    }
+
+    function shortString(s, max) {
+      return s is string && s.size() > 0 && s.size() <= max;
+    }
+
+    function optionalString(field, max) {
+      return !d().keys().hasAny([field]) || (d()[field] is string && d()[field].size() <= max);
+    }
+
+    function validUser() {
+      return d().keys().hasOnly(['name', 'initials', 'updatedAt', 'updatedBy'])
+        && shortString(d().name, 100)
+        && shortString(d().initials, 4)
+        && stamped();
+    }
+
+    function validLocation() {
+      return shortString(d().name, 120)
+        && d().isOwnStudio is bool
+        && d().rooms is list && d().rooms.size() <= 50
+        && d().archived is bool
+        && optionalString('address', 300)
+        && optionalString('loadingNotes', 2000)
+        && optionalString('contact', 300)
+        && stamped();
+    }
+
+    function validItem() {
+      return shortString(d().tag, 20)
+        && shortString(d().name, 120)
+        && d().category is string && d().category.size() <= 60
+        && d().quantity is int && d().quantity >= 1 && d().quantity <= 100000
+        && d().condition in ['ok', 'huollossa', 'rikki']
+        && (!d().keys().hasAny(['conditionUntil']) || d().conditionUntil is timestamp)
+        && d().homeLocationId is string
+        && d().archived is bool
+        && optionalString('notes', 2000)
+        && stamped();
+    }
+
+    function validPackage() {
+      return shortString(d().name, 120)
+        && d().lines is list && d().lines.size() <= 300
+        && stamped();
+    }
+
+    function validGig() {
+      return shortString(d().name, 120)
+        && d().status in ['alustava', 'vahvistettu', 'valmis', 'peruttu']
+        && d().locationId is string
+        && d().responsible is string
+        && d().crew is list && d().crew.size() <= 20
+        && d().equipStart is timestamp && d().eventStart is timestamp
+        && d().eventEnd is timestamp && d().equipEnd is timestamp
+        && d().equipStart <= d().eventStart
+        && d().eventStart < d().eventEnd
+        && d().eventEnd <= d().equipEnd
+        && d().lines is list && d().lines.size() <= 300
+        && d().awaitingReturn is bool
+        && optionalString('notes', 4000)
+        && stamped();
+    }
+
+    match /allowedUsers/{email} {
+      allow read: if allowed();
+      allow create, update: if allowed() && email == email.lower() && validUser();
+      // Nobody can remove themselves, so the list can never be emptied by its last user.
+      allow delete: if allowed() && email != signedInEmail();
+    }
+
+    match /settings/{docId} {
+      allow read: if allowed();
+      allow write: if allowed() && docId == 'app' && stamped();
+    }
+
+    match /locations/{locationId} {
+      allow read: if allowed();
+      allow create, update: if allowed() && validLocation();
+      allow delete: if false; // archived instead
+    }
+
+    match /items/{itemId} {
+      allow read: if allowed();
+      allow create, update: if allowed() && validItem();
+      allow delete: if false; // archived instead
+    }
+
+    match /packages/{packageId} {
+      allow read: if allowed();
+      allow create, update: if allowed() && validPackage();
+      allow delete: if allowed();
+    }
+
+    match /gigs/{gigId} {
+      allow read: if allowed();
+      allow create, update: if allowed() && validGig();
+      // Only tentative gigs are deleted; others are cancelled so history stays intact.
+      allow delete: if allowed() && resource.data.status == 'alustava';
+    }
+  }
+}

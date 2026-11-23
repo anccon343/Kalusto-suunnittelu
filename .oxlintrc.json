@@ -3,7 +3,12 @@
   "plugins": ["react", "typescript", "oxc", "vitest"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ],
     "typescript/no-floating-promises": "error",
     "typescript/no-misused-promises": "error",
     "vitest/no-conditional-expect": "off"
@@ -50,6 +55,17 @@
                 "message": "Käytä Firebasea vain src/data-kerroksen kautta."
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["test/**"],
+      "rules": {
+        "vitest/expect-expect": [
+          "error",
+          {
+            "assertFunctionNames": ["expect", "assertFails", "assertSucceeds"]
           }
         ]
       }
