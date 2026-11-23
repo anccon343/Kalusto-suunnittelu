@@ -1,9 +1,9 @@
 import { defineConfig } from 'vitest/config'
 
-// Security rules tests; run through `pnpm test:rules`, which starts the Firestore emulator.
+// Emulator tests (security rules and data layer); run through `pnpm test:emulator`.
 export default defineConfig({
   test: {
-    include: ['test/**/*.rules.test.ts'],
+    include: ['test/**/*.test.ts'],
     environment: 'node',
     // The emulator is shared state: run files one at a time.
     fileParallelism: false,

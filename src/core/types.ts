@@ -108,3 +108,17 @@ export interface Gig extends Marks {
   /** Per-line departure/return marks for lines with their own start or end. */
   lineMarks?: Record<string, Marks>
 }
+
+/** A document as stored: the domain value plus who changed it last and when. */
+export type Stored<T> = T & { readonly updatedAt: Ms; readonly updatedBy: string }
+
+export interface AllowedUser {
+  /** Google account email in lower case; also the document id. */
+  email: string
+  name: string
+  initials: string
+}
+
+export interface AppSettings {
+  lastBackupAt?: Ms
+}

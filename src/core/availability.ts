@@ -123,6 +123,14 @@ export function isFirm(g: Gig): boolean {
   return g.status === 'vahvistettu' || g.status === 'valmis' || g.departedAt !== undefined
 }
 
+/**
+ * Stored on each gig so gigs still out can be queried (plan 2.3): an external gig that
+ * is confirmed or departed, still live, and not returned.
+ */
+export function computeAwaitingReturn(g: Gig, isOwnStudio: boolean): boolean {
+  return !isOwnStudio && isFirm(g) && g.returnedAt === undefined && isLive(g)
+}
+
 const uniqueSorted = (xs: Iterable<string>): string[] => [...new Set(xs)].sort()
 
 /**
@@ -302,7 +310,7 @@ export class Availability {
 
   /** `awaitingReturn`: an external, confirmed or departed gig that has not been returned. */
   awaitingReturn(g: Gig): boolean {
-    return !this.isOwnStudio(g) && isFirm(g) && g.returnedAt === undefined && isLive(g)
+    return computeAwaitingReturn(g, this.isOwnStudio(g))
   }
 
   // -------------------------------------------------------------------------

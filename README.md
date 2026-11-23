@@ -7,11 +7,11 @@ Suunnitelma: [`docs/SUUNNITELMA.md`](docs/SUUNNITELMA.md). Taustatutkimus: [`doc
 
 ## Tila
 
-| Vaihe                                               | Tila             |
-| --------------------------------------------------- | ---------------- |
-| Saatavuus- ja päällekkäisyyslaskenta (`src/core`)   | Valmis, testattu |
-| Firebase, kirjautuminen ja tietokerros (`src/data`) | Seuraavaksi      |
-| Näkymät (`src/views`)                               | Tulossa          |
+| Vaihe                                                       | Tila                            |
+| ----------------------------------------------------------- | ------------------------------- |
+| Saatavuus- ja päällekkäisyyslaskenta (`src/core`)           | Valmis, testattu                |
+| Firebase-säännöt, kirjautuminen ja tietokerros (`src/data`) | Valmis, testattu emulaattorissa |
+| Näkymät (`src/views`)                                       | Seuraavaksi                     |
 
 ## Tekniikka
 
@@ -32,7 +32,10 @@ src/
     validation.ts    Lomakkeiden tarkistukset
     tags.ts          Laitetunnukset (KAM-03) ja Monista
     __fixtures__/    Suunnitelman esimerkkitilanne testiaineistona
-  data/        Firebase ja reaaliaikaiset kuuntelijat (tulossa)
+  data/        Firebase: asetukset, Zod-skeemat, kirjoitukset, kuuntelijat, kirjautuminen
+  fi.ts        Käyttöliittymän suomenkieliset tekstit
+test/          Emulaattoritestit: Firestore-säännöt ja tietokerros
+firestore.rules  Tietokannan käyttöoikeussäännöt
   views/       Näkymät (tulossa)
 docs/          Suunnitelma ja tutkimus
 ```
@@ -75,3 +78,24 @@ ajetaan GitHub Actionsissa jokaiselle pushille. Komennot toimivat myös Windowsi
 - Väärä Node-versio pysäyttää asennuksen (`engineStrict`).
 
 Muut komennot: `pnpm test:watch`, `pnpm coverage`, `pnpm build`, `pnpm format`.
+
+### Firebase ja emulaattorit
+
+Firebase-projekti on `roudari-97f09` (europe-north1). Paikallinen kehitys ja testit käyttävät
+emulaattoreita ja demo-projektia `demo-roudari`, joten ne eivät koskaan koske oikeaan dataan.
+Emulaattorit tarvitsevat Javan (21+).
+
+```bash
+pnpm test:emulator
+```
+
+```bash
+pnpm emulators
+```
+
+```bash
+pnpm dev:emu
+```
+
+`pnpm test:emulator` ajaa sääntö- ja tietokerrostestit (myös CI:ssä). Kehitystä varten käynnistä
+`pnpm emulators` yhteen terminaaliin ja `pnpm dev:emu` toiseen.

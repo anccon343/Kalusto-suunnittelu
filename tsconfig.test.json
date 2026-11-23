@@ -16,5 +16,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["test", "vitest.rules.config.ts"]
+  "include": ["test", "vitest.emulator.config.ts"]
 }

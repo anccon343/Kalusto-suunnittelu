@@ -21,8 +21,9 @@
     "test:tz": "TZ=UTC vitest run && TZ=America/New_York vitest run && TZ=Europe/Helsinki vitest run --coverage",
     "coverage": "vitest run --coverage",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:tz",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-roudari \"vitest run --config vitest.rules.config.ts\"",
-    "emulators": "firebase emulators:start --project demo-roudari"
+    "emulators": "firebase emulators:start --only auth,firestore --project demo-roudari",
+    "dev:emu": "VITE_USE_EMULATORS=true vite",
+    "test:emulator": "firebase emulators:exec --only firestore --project demo-roudari \"vitest run --config vitest.emulator.config.ts\""
   },
   "dependencies": {
     "firebase": "^13.4.0",
