@@ -1,6 +1,6 @@
 # Kalustonhallinta ja keikkasuunnittelu: kevyt suunnitelma
 
-*Laadittu 23.11.2026 (vk 48). Korvaa laajan suunnitelman (`suunnitelma-v1-laaja.md`) ja perustuu käyttäjän vastauksiin sen avoimiin kysymyksiin. Kirjastoversiot ovat laajan suunnitelman npm-tarkistuksesta. Firebasen Spark- ja Blaze-erot on tarkistettu 23.11.2026 Firebasen hinnoittelusivulta ja varmuuskopio-ohjeesta. "(tarkista)" = ei varmistettu ensikäden lähteestä.*
+*Laadittu 23.11.2026 (vk 48). Korvaa laajan suunnitelman (`tutkimus/suunnitelma-v1-laaja.md`) ja perustuu käyttäjän vastauksiin: ensimmäinen kierros laajan suunnitelman kysymyksiin ("L1–L6") ja tarkentava kierros (luku 9, "T1–T5"). Kirjastoversiot ovat laajan suunnitelman npm-tarkistuksesta. Firebasen Spark- ja Blaze-erot on tarkistettu 23.11.2026 Firebasen hinnoittelusivulta ja varmuuskopio-ohjeesta. "(tarkista)" = ei varmistettu ensikäden lähteestä.*
 
 ---
 
@@ -17,11 +17,11 @@ Kevyt, suomenkielinen sisäinen verkkosovellus puhelimelle, tabletille ja läpp�
 
 ### 1.2 Mikä muuttui ja miksi
 
-- **Google-tilit ja sallittujen lista, ei rooleja** (vastaus 1, toive kirjautua Google-tunnuksilla, "poista vaikeat roolit").
-- **Yksi kalustokokoelma**, koska varataan aina tietty laite (vastaus 2).
-- **Ei varastopaikkoja eikä ajoneuvoja**, vain studion tilat ja ulkoiset kohteet (vastaus 3).
-- **Neljä aikaa, jotka syötetään itse**, ei valmiita aikapohjia (vastaus 4 ja tarkennus). **Monipäiväiset keikat** ja **kesken keikan lähtevä kalusto** (tarkennus 5): rivillä voi olla oma aika, ja suora siirto voi lähteä kesken keikan.
-- **Ei palvelinkoodia:** päällekkäisyydet lasketaan selaimessa testatulla funktiolla, ja "ensin vahvistanut voittaa" tarkistetaan tallennettaessa (vastaukset 5 ja 6).
+- **Google-tilit ja sallittujen lista, ei rooleja** (L1, toive kirjautua Google-tunnuksilla, "poista vaikeat roolit").
+- **Yksi kalustokokoelma**, koska varataan aina tietty laite (L2).
+- **Ei varastopaikkoja eikä ajoneuvoja**, vain studion tilat ja ulkoiset kohteet (L3).
+- **Neljä aikaa, jotka syötetään itse**, ei valmiita aikapohjia (L4, T2). **Monipäiväiset keikat** ja **kesken keikan lähtevä kalusto** (T5): rivillä voi olla oma aika, ja suora siirto voi lähteä kesken keikan.
+- **Ei palvelinkoodia:** päällekkäisyydet lasketaan selaimessa testatulla funktiolla, ja "ensin vahvistanut voittaa" tarkistetaan tallennettaessa (L5, L6).
 - **Tietosuojaosuus poistettu** (sisäinen käyttö). **6 näkymää** 13:n sijaan.
 
 ### 1.3 Ostaa vai rakentaa
@@ -61,7 +61,7 @@ Keikan **Status** on Alustava, Vahvistettu, Valmis (vahvistettu ja palautettu) t
 1. **Faktat tallennetaan, muu lasketaan.** Ainoa tallennettu johdettu kenttä on hakua varten oleva `awaitingReturn`.
 2. **Ajat tallennetaan `Timestamp`-arvoina** ja näytetään Helsingin ajassa.
 3. **Rivit ovat keikan sisällä**, ja suora siirto tallennetaan vain vastaanottavalle riville. Tallennus kirjoittaa siis aina yhden keikan.
-4. **Kukaan ei kirjoita toisen päälle huomaamatta.** Lomake tallentaa transaktiossa vain muuttamansa kentät. Jos sama kenttä on muuttunut toisaalla lomakkeen avaamisen jälkeen, tallennus keskeytyy: "Keikkaa muutettiin juuri toisaalla. Tarkista ja tallenna uudelleen." Lähti ja Palautettu kirjoitetaan omiin kenttiinsä, joten lomake ei koskaan pyyhi niitä.
+4. **Kukaan ei kirjoita toisen päälle huomaamatta.** Lomake tallentaa transaktiossa vain muuttamansa kentät. Jos sama kenttä on muuttunut toisaalla lomakkeen avaamisen jälkeen, tallennus keskeytyy: "Keikkaa muutettiin juuri toisaalla. Tarkista ja tallenna uudelleen." Lähti- ja Palautettu-merkinnät, myös rivikohtaiset (`lineMarks.<riviId>`), kirjoitetaan omiin kenttiinsä kenttäpolulla, joten lomake ei koskaan pyyhi niitä.
 5. **Kenttien nimet englanniksi, käyttöliittymä suomeksi. Kalustoa ei poisteta vaan arkistoidaan.**
 
 ### 2.3 Kokoelmat (Firestore)
@@ -82,21 +82,23 @@ gigs/{id}             name, client?, locationId, room?, responsible, crew: email
                       departedAt?, departedBy?, returnedAt?, returnedBy?,  // Lähti, Palautettu
                       lines: [{ id, itemId, qty, note?,
                                 start?, end?,                    // rivin oma aika (oletus: kalustojakso)
-                                returnedAt?, returnedBy?,        // vain aiemmin studiolle palaavalle riville
                                 from?: { gigId, lineId, handoverAt, travelMin? } }],  // suora siirto
+                      lineMarks?: { [lineId]: { departedAt?, departedBy?,  // oman ajan rivien Lähti
+                                                returnedAt?, returnedBy? } }, // ja Palautettu
                       awaitingReturn, updatedAt, updatedBy
 ```
 
-- **Laitetta** ei voi lisätä samalle keikalle kahdesti. **Määrätavaran** rivin määrä on enintään `quantity`; rikkinäiset kaapelit vähennetään määrästä.
+- **Laitetta** ei voi lisätä samalle keikalle kahdesti (laitteen paluu samalle keikalle kesken keikan on Myöhemmin-listalla). **Määrätavaran** rivin määrä on enintään `quantity`; rikkinäiset kaapelit vähennetään määrästä.
 - **Tunnus** on yksilöllinen kirjainkoosta ja välilyönneistä riippumatta. **Kategoria** on vapaa teksti, jota täydennetään aiemmista arvoista.
-- **Suoran siirron** vastaanottava rivi voi ottaa lähderiviltä koko määrän tai osan. Jos B:llä on 20 kaapelia ja C ottaa 12, loput 8 palaavat B:ltä studiolle. Lähderivillä on enintään yksi vastaanottaja.
-- **Rivin oma aika** pysyy kalustojakson sisällä: *kalusto lähtee ≤ rivin alku < rivin loppu ≤ kalusto takaisin*. Suoran siirron rivillä alku on luovutushetki.
-- **`awaitingReturn`** = kohde ei ole oma studio, keikka on vahvistettu tai lähtenyt, eikä keikkaa tai jotain sen aiemmin palaavaa riviä ole palautettu.
+- **Suoran siirron** vastaanottava rivi voi ottaa lähderiviltä koko määrän tai osan. Jos B:llä on 20 kaapelia ja C ottaa 12, loput 8 palaavat B:ltä studiolle. Lähderivillä on enintään yksi vastaanottaja: sovellus ei tarjoa jo varattua lähderiviä, ja jos voimassa olevilla keikoilla on silti useampi, kaikki merkitään "ei täsmää".
+- **Rivin oma aika** pysyy kalustojakson sisällä: *kalusto lähtee ≤ rivin alku < rivin loppu ≤ kalusto takaisin*. **Poikkeus:** suoran siirron rivin varaus alkaa luovutushetkestä, joka saa olla ennen tämän keikan kaluston lähtöä (laite odottaa vastaanottavalla keikalla). Vastaanottavalla rivillä `start` tarkoittaa "tarvitaan alkaen" ja vaikuttaa vain pelivaraan.
+- **Rivin oma Lähti ja Palautettu** (`lineMarks`): myöhemmin lähtevä rivi (oma alku) ja aiemmin palaava rivi (oma loppu) merkitään erikseen. Muut rivit seuraavat keikan merkintöjä.
+- **`awaitingReturn`** = kohde ei ole oma studio, keikka on vahvistettu tai lähtenyt, eikä keikkaa ole merkitty palautetuksi. Keikan Palautettu kattaa myös aiemmin palaavat rivit, joita ei ole merkitty erikseen.
 - **Ladataan** koko kalusto, kohteet, paketit ja käyttäjät, keikat joiden `equipEnd` on viimeisten 60 päivän aikana tai tulevaisuudessa, sekä keikat joilla `awaitingReturn == true`. Laitekortin historia lasketaan näistä, joten yhdistelmäindeksejä ei tarvita.
 
 ### 2.4 Kohteiden lähtödata
 
-- **Oma studio:** Iso studio (pohjapiirroksen Studio 1, 120 m²), Keittiöstudio (Studio 2, 54 m²), Pikku studio (Studio 3, 45 m²), Iso tarkkaamo (n. 16 m²) ja Pikku tarkkaamo (n. 11 m²).
+- **Oma studio:** Iso studio, Pikku studio, Keittiöstudio, Pikku tarkkaamo ja Iso tarkkaamo (T4).
 - **Clarion Hotel Helsinki**, Tyynenmerenkatu 2 (hotellin esite 2016, tarkista): Bysa 1–3, Sonck, Crusell, Tallberg, Sandis, Saukko, Brygga, Kraana, Bunkkeri, Hiili, Ulappa 1–2. Kohdekorttiin: "Ulappa 1–2 tornin 16. krs, kalusto hissillä". Lastaus- ja pysäköintiohjeet kirjataan ensimmäisen keikan jälkeen.
 
 ---
@@ -108,20 +110,20 @@ Puhelimen alapalkissa ovat **Tänään · Kalenteri · Kalusto · Taulu · Lisä
 | Näkymä | Sisältö |
 |---|---|
 | **Kalenteri** | FullCalendar: kuukausi, viikko ja lista. Viikko alkaa maanantaista, viikkonumerot näkyvät, alustavat ovat vinoviivoitettuja ja päällekkäisyydestä on merkki |
-| **Keikka** | Perustiedot, kohdekortti ja neljä aikaa (syötetään itse). Rivit saatavuusmerkkeineen, rivin oma aika ("Mukana asti…" / "Tulee alkaen…"), suorat siirrot ja päällekkäisyydet. Vahvista, Lähti, Palautettu, + Paketti ja Tallenna paketiksi |
+| **Keikka** | Perustiedot, kohdekortti ja neljä aikaa (syötetään itse). Rivit saatavuusmerkkeineen, rivin oma aika ("Mukana asti…" / "Tulee alkaen…"), suorat siirrot ja päällekkäisyydet. Vahvista, Lähti, Palautettu (myös rivikohtaiset oman ajan riveille), + Paketti ja Tallenna paketiksi |
 | **Kalusto** | Haku (tunnus, nimi, sarjanumero), kategoria ja Tilanne. Lisää ja Monista. **Laitekortti:** Missä nyt, Seuraavaksi, viimeisimmät keikat, kunto ja Siirretty tänne |
 | **Kalustotaulu** | Laitteet × päivät (puhelimessa 1 viikko, muuten 2): keikkapalkit, suorat siirrot, huollot ja määrätavaroiden "vapaana/omistettu". Oma CSS-grid, ensimmäinen sarake kiinnitetty |
 | **Roudaukset** | Laskettu päivälista: mitä lähtee, siirtyy suoraan ja palaa (myös kesken monipäiväisen keikan), milloin, mistä mihin ja kuka vastaa. Studion sisäisiä siirtoja ei listata |
-| **Tänään** | Tämän päivän ja huomisen roudaukset merkintäpainikkeineen sekä **Korjattavaa**: punaiset päällekkäisyydet, palauttamattomat keikat, menneet alustavat, ohitetut huollon paluuajat, täsmäämättömät suorat siirrot ja vanha varmuuskopio |
+| **Tänään** | Tämän päivän ja huomisen roudaukset merkintäpainikkeineen sekä **Korjattavaa**: punaiset päällekkäisyydet, palauttamattomat keikat ja aiemmin palaavat rivit, menneet alustavat, ohitetut huollon paluuajat, täsmäämättömät suorat siirrot ja vanha varmuuskopio |
 | *Asetukset* | Käyttäjät, kohteet, paketit ja Lataa varmuuskopio (JSON) |
 
 Kosketusalueet ovat vähintään 48 px, värin rinnalla on aina teksti, päivämäärät muodossa "ti 1.12.2026", "klo 9.00" ja "vk 49", eikä 360 px:n leveydellä ole vaakavieritystä.
 
-**"Vapaana"** tarkoittaa keikan rivillä vapaata määrää *muiden* keikkojen jälkeen keikan jaksolla, ja taululla vapaata määrää *kaikkien* varausten jälkeen. Molemmissa näytetään pienin arvo.
+**"Vapaana"** tarkoittaa keikan rivillä vapaata määrää *muiden* keikkojen jälkeen rivin varausjaksolla (oletuksena kalustojakso), ja taululla vapaata määrää *kaikkien* varausten jälkeen. Molemmissa näytetään pienin arvo.
 
 ### 3.1 Esimerkkitilanne (luvut 3–5 ja testit; monipäiväinen esimerkki luvussa 4.6)
 
-**Kalusto:** FX6-kamerat KAM-01…04, joista **KAM-03 on huollossa pe 4.12. klo 16.00 asti**. PTZ-01…03. XLR 10 m × 40. **Ajoajat:** studio → Clarion 30 min, Clarion → Espoo 35 min.
+**Kalusto:** FX6-kamerat KAM-01…04, joista **KAM-03 on huollossa pe 4.12. klo 16.00 asti**. PTZ-01…03. XLR 10 m × 40. **Syötetyt ajoajat:** studio → Clarion 30 min, Clarion → Espoo 35 min (ajoaika syötetään suoran siirron riville; tyhjä = 0 min).
 
 | Keikka | Paikka | Status | Kalusto lähtee | Tapahtuma | Takaisin | Kalusto |
 |---|---|---|---|---|---|---|
@@ -188,7 +190,7 @@ Selite: [===] vahvistettu  [///] alustava  > suora siirto  ::: huollossa tai rik
 ### 4.2 Keikan luonti
 1. **Kalenteri → ti 1.12. → Uusi keikka:** Hybridiseminaari, Clarion › Bysa 2, vastuu Mikko, tiimi Anna ja Jussi. Status on oletuksena Alustava.
 2. **Ajat syötetään itse:** kalusto lähtee ma 30.11. klo 14.00, tapahtuma ti 10.00–16.00, kalusto takaisin ke 2.12. klo 12.00. Valmiita oletuksia ei ole: uuden keikan kellonajat ovat tyhjiä, ja kalenterista valittu päivä täyttyy päivämääriin. Lomake tarkistaa järjestyksen *lähtee ≤ alkaa < päättyy ≤ takaisin*.
-3. **Lisää kalustoa:** haku "kam" näyttää jokaisen FX6:n saatavuuden keikan jaksolla. Mikko lisää KAM-01:n, PTZ-01:n, PTZ-02:n ja XLR × 20.
+3. **Lisää kalustoa:** haku "kam" näyttää jokaisen FX6:n saatavuuden rivin varausjaksolla (tässä kalustojakso). Mikko lisää KAM-01:n, PTZ-01:n, PTZ-02:n ja XLR × 20.
 4. **Merkit näkyvät heti** (kuva 3.2). XLR on OK: muut keikat käyttävät B:n jaksolla enintään 10 kaapelia (A, ma 14.00–17.00), joten vapaana on vähintään 30/40.
 5. **Tallenna.** Alustava keikka tallentuu varoituksista huolimatta.
 
@@ -201,7 +203,7 @@ Selite: [===] vahvistettu  [///] alustava  > suora siirto  ::: huollossa tai rik
 
 ### 4.4 Suora siirto: studio → Clarion → seuraava keikka
 1. **A → B:** A:n PTZ-varaus (ma 11.00–17.00) osuu B:n jaksoon (alkaa ma 14.00), ja A:n tapahtuma alkaa ennen B:n tapahtumaa. Sovellus kysyy: **"Tuleeko suoraan keikalta Lanseeraus?"** Mitään ei ketjuteta ilman hyväksyntää.
-2. **Hyväksy.** Luovutus on oletuksena A:n tapahtuman loppu + 60 min eli ma 17.00, ajoaika 30 min; molemmat muokattavia. A:n rivi päättyy ja B:n alkaa klo 17.00, joten laite ei ole päällekkäin itsensä kanssa. **Pelivara** 17.00 + 30 min → ti 10.00 = **16 h 30 min**.
+2. **Hyväksy.** Luovutus on oletuksena A:n tapahtuman loppu + 60 min eli ma 17.00 (muokattavissa), ja ajoajaksi syötetään 30 min. A:n rivi päättyy ja B:n alkaa klo 17.00, joten laite ei ole päällekkäin itsensä kanssa. **Pelivara** 17.00 + 30 min → ti 10.00 = **16 h 30 min**.
 3. **B → C:** Jussi luo C:n (vastuu Jussi) ja valitsee riveille PTZ-01, PTZ-02 ja XLR × 12 "Tulee suoraan keikalta Hybridiseminaari". Luovutus ti 17.00, ajo 35 min → ke 9.00: **pelivara 15 h 25 min**. C ottaa B:n 20 kaapelista 12; loput 8 palaavat studiolle.
 4. **Hyöty kaapeleissa:** ilman suoraa siirtoa ti 14.00–17.00 kysyntä olisi 20 + 8 + 12 = 40/40, vapaana 0. Suoran siirron kanssa C:n kaapelit ovat B:n kaapeleita, ja vapaana on vähintään 12.
 5. **Vahvistus:** B:llä on KAM-04, PTZ-01 ja PTZ-02 (← A, → C) ja XLR × 20 (12 → C). Vahvistettujen kysyntä on enimmillään 30/40 (ma 14.00–17.00: A 10 + B 20), joten B:n voi vahvistaa. C jää alustavaksi.
@@ -209,7 +211,7 @@ Selite: [===] vahvistettu  [///] alustava  > suora siirto  ::: huollossa tai rik
 
 ```text
 ma 30.11. 14.00 Oma studio → Clarion › Bysa 2      Hybridiseminaari: KAM-04, XLR ×20       Mikko
-          17.00 Iso studio → Clarion › Bysa 2  SUORA A → B: PTZ-01, PTZ-02 (30 min)    Mikko
+          17.00 Oma studio › Iso studio → Clarion › Bysa 2  SUORA A → B: PTZ-01, PTZ-02 (30 min)  Mikko
 ti 1.12.  17.00 Clarion › Bysa 2 → Asiakas Oy      SUORA B → C: PTZ-01, PTZ-02, XLR ×12    Jussi
 ke 2.12.  12.00 Clarion › Bysa 2 → Oma studio      Hybridiseminaari: KAM-04, XLR ×8        Mikko
 to 3.12.  12.00 Asiakas Oy → Oma studio            Asiakastilaisuus: PTZ-01, PTZ-02, XLR ×12  Jussi
@@ -217,13 +219,13 @@ to 3.12.  12.00 Asiakas Oy → Oma studio            Asiakastilaisuus: PTZ-01, P
 
 Lähdöstä ja paluusta vastaa keikan vastuuhenkilö, suorasta siirrosta vastaanottavan keikan vastuuhenkilö.
 
-7. **Jos C perutaan,** B:n rivit palaavat B:n omiin aikoihin (takaisin ke 12.00), ja Tänään näyttää "Suoran siirron keikka peruttu, tarkista roudaus". Samoin, jos keikan aikoja muutetaan niin, ettei luovutus enää osu keikkojen väliin: siirto jätetään laskennassa huomiotta ja merkitään "ei täsmää", kunnes luovutusaika korjataan.
+7. **Jos C perutaan,** B:n rivit palaavat B:n omiin aikoihin (takaisin ke 12.00), ja Tänään näyttää "Suoran siirron keikka peruttu, tarkista roudaus". Samoin, jos aikoja muutetaan niin, ettei luovutus enää osu lähderivin varaukseen tai ole ennen vastaanottavan keikan ja rivin loppua (sääntö 4): siirto jätetään laskennassa huomiotta ja merkitään "ei täsmää", kunnes luovutusaika korjataan.
 
 ### 4.5 Lähti, Palautettu ja "missä nyt"
 1. **Lähti:** KAM-04 ja kaapelit lähtevät ma 14.10, ja Mikko painaa B:llä **Lähti**. Lähti on mahdollinen vain vahvistetulla keikalla.
 2. **Missä nyt:**
    - KAM-04 ma 13.30: "Oma studio, lähdössä keikalle Hybridiseminaari klo 14.00". Ma 15.00: "Clarion › Bysa 2, Hybridiseminaari (lähti 14.10, Mikko)".
-   - PTZ-01 ma 16.00: "Iso studio, Lanseeraus. Seuraavaksi suora siirto Hybridiseminaariin klo 17.00". Ma 17.15: "Matkalla Lanseeraus → Hybridiseminaari, perillä noin 17.30". Ti 12.00: "Clarion › Bysa 2", seuraavaksi "suora siirto Asiakastilaisuuteen ti 17.00".
+   - PTZ-01 ma 16.00: "Oma studio › Iso studio, Lanseeraus. Seuraavaksi suora siirto Hybridiseminaariin klo 17.00". Ma 17.15: "Matkalla Lanseeraus → Hybridiseminaari, perillä noin 17.30". Ti 12.00: "Clarion › Bysa 2", seuraavaksi "suora siirto Asiakastilaisuuteen ti 17.00".
    - Jos todellisuus poikkeaa, **Siirretty tänne** tallentaa tekstin, esim. "Mikon auto". Se näkyy laskennallisen sijainnin rinnalla, kunnes laitteelle tulee uudempi merkintä tai joku kuittaa sen pois.
 3. **Palautettu** ke 12.30 vapauttaa B:n kaluston, joka ei jatka toiselle keikalle (KAM-04 ja XLR × 8), ja muuttaa statuksen Valmiiksi. Jos jotain puuttuu, keikkaa ei merkitä palautetuksi.
 4. **Palauttamatta:** merkitsemättömän B:n kalusto pysyy varattuna. Vahvistettu studiokeikka **D Tuotevideo** (Keittiöstudio, to 3.12., kalusto klo 8.00–17.00) haluaa KAM-04:n, joten to 9.00 D:llä näkyy punaisena "KAM-04 ei ole palautettu keikalta Hybridiseminaari (myöhässä 21 h)". Alustavalla D:llä merkki olisi keltainen. Tänään-näkymässä on **Merkitse palautetuksi**.
@@ -236,7 +238,7 @@ Lähdöstä ja paluusta vastaa keikan vastuuhenkilö, suorasta siirrosta vastaan
 **F Studiohaastattelu**, Oma studio › Pikku studio, vahvistettu, vastuu Jussi. Kalusto ti 8.12. klo 8.00–13.00, tapahtuma 9.00–12.00. Tarvitsee KAM-01:n.
 
 1. **Ilman siirtoa** KAM-01 on E:llä ke 12.00 asti, joten F:llä näkyy punainen "Päällekkäin: Messut", ja F:n tallennus vahvistettuna estetään.
-2. **Suora siirto kesken keikan:** F:n KAM-01-rivillä "Tulee suoraan keikalta Messut", luovutus **ma 7.12. klo 18.00** (ensimmäisen päivän ilta), ajoaika 30 min. Luovutus on E:n rivin aikana (su 14.00 < ma 18.00 ≤ ke 12.00) ja ennen F:n loppua, joten siirto on kelvollinen. **Pelivara** ma 18.30 → ti 9.00 = **14 h 30 min**. Päällekkäisyys poistuu.
+2. **Suora siirto kesken keikan:** F:n KAM-01-rivillä "Tulee suoraan keikalta Messut", luovutus **ma 7.12. klo 18.00** (ensimmäisen päivän ilta), ajoaika 30 min. Luovutus on E:n rivin aikana (su 14.00 < ma 18.00 ≤ ke 12.00) ja ennen F:n loppua, joten siirto on kelvollinen. Se on ennen F:n kaluston lähtöä, mikä on suoralle siirrolle sallittua: KAM-01 odottaa studiolla. (Oletusluovutus olisi ollut ti 8.00, koska E:n tapahtuman loppu + 60 min = ti 17.00 on F:n tapahtuman lopun jälkeen; Jussi vaihtoi sen.) **Pelivara** ma 18.30 → ti 9.00 = **14 h 30 min**. Päällekkäisyys poistuu.
 3. **Aiempi paluu studiolle:** PTZ-03 tarvitaan vain maanantaina. E:n PTZ-03-rivin oma aika: **mukana ma 7.12. klo 19.00 asti**. PTZ-03 on vapaa muille ma 19.00 alkaen, kun paluu merkitään. Merkitsemättä se jää varaamaan, ja tiistain vahvistettu keikka, joka haluaa PTZ-03:n, näkee punaisen "PTZ-03 ei ole palautettu keikalta Messut".
 4. **Roudaukset:**
 
@@ -247,10 +249,12 @@ ma 7.12.  18.00 Clarion › Bysa 1 → Oma studio › Pikku st. SUORA Messut →
 ke 9.12.  12.00 Clarion › Bysa 1 → Oma studio            Messut: KAM-02, XLR ×16                   Anna
 ```
 
-5. **Kalustotaulu:** KAM-01:n rivillä on palkki [Messut] su–ma ja sen perässä "> [Studiohaastattelu]" ti. PTZ-03:n palkki päättyy ma iltaan.
-6. **Missä nyt:** KAM-01 ti 10.00 on "Oma studio › Pikku studio, Studiohaastattelu". PTZ-03 ma 20.00 on "Palaamassa keikalta Messut" tai merkinnän jälkeen "Oma studio".
+5. **Kalustotaulu:** KAM-01:n rivillä on palkki [Messut] su 14.00 – ma 18.00 ja sen perässä "> [Studiohaastattelu]" ma 18.00 – ti 13.00. PTZ-03:n palkki päättyy ma klo 19.00.
+6. **Missä nyt:** KAM-01 ti 10.00 on "Oma studio › Pikku studio, Studiohaastattelu". PTZ-03 ma 20.00 on "Palauttamatta: Messut (piti palata ma 19.00)" tai merkinnän jälkeen "Oma studio".
 
-Jos kalustoa **tulee myöhemmin** (esim. lisävalot vasta tiistaiksi), rivin oma alku on ti 7.00, ja Roudaukset näyttää sille oman lähdön.
+Jos kalustoa **tulee myöhemmin** (esim. lisävalot vasta tiistaiksi), rivin oma alku on ti 7.00, ja Roudaukset näyttää sille oman lähdön ja rivikohtaisen Lähti-painikkeen.
+
+Jos kalustoa tulee kesken keikan **toiselta keikalta**, vastaanottavalle riville annetaan "tarvitaan alkaen" (esim. ti 7.00), ja pelivara lasketaan siihen.
 
 ---
 
@@ -262,15 +266,15 @@ Logiikka on kansiossa `src/core`: puhtaita funktioita ilman Firebase- ja React-r
 1. **Aikavälit ovat puoliavoimia `[alku, loppu)`**: klo 17.00 päättyvä ja klo 17.00 alkava eivät ole päällekkäin.
 2. **Helsingin aika:** lomakeajat muunnetaan apufunktioilla `helsinkiLocalToInstant()` ja `instantToHelsinkiLocal()`, jotka tehdään `Intl.DateTimeFormat`-pohjaisiksi (dayjs:n `tz()`-funktiossa on tunnettuja kesäaikabugeja). 28.3.2027 klo 3.00–3.59 ei ole olemassa, ja lomake ilmoittaa siitä. 25.10.2026 ja 31.10.2027 klo 3.00–3.59 toistuvat, ja valitaan aiempi (kesäaika). Taulun päivät lasketaan Helsingin kalenteripäivinä, ei 24 tunnin lisäyksinä.
 3. **Rivin varaus** alkaa kelvollisen suoran siirron luovutuksesta, muuten rivin omasta alusta tai kaluston lähdöstä, ja päättyy rivin omaan loppuun tai kaluston paluuseen. Lähderivillä vastaanottajan ottama määrä päättyy luovutukseen ja loput rivin loppuun.
-4. **Suora siirto on kelvollinen**, jos molemmat keikat ovat voimassa, lähderivi on olemassa samalla laitteella, määrä riittää, lähderivillä ei ole toista vastaanottajaa ja *lähderivin alku < luovutus ≤ lähderivin loppu* sekä *luovutus < B:n tapahtuman loppu*. Luovutus voi siis olla myös kesken monipäiväisen keikan. Muuten siirto ohitetaan ja merkitään "ei täsmää".
-5. **Palauttamaton kalusto varaa toistaiseksi**, kun keikka ei ole omassa studiossa, on vahvistettu, valmis tai lähtenyt, rivi ei ole palautettu ja *nyt ≥ rivin loppu*. Aiemmin palaavan rivin (oma loppu) palautus merkitään rivikohtaisesti, muut keikan Palautettu-merkinnällä. Ennen loppua merkitty palautus päättää varauksen.
+4. **Suora siirto on kelvollinen**, jos molemmat keikat ovat voimassa, lähderivi on olemassa samalla laitteella, määrä riittää, lähderivillä on voimassa olevilla keikoilla täsmälleen yksi vastaanottaja, `from`-ketjussa ei ole kehää, *lähderivin alku < luovutus ≤ lähderivin loppu* sekä *luovutus < B:n tapahtuman loppu* ja *luovutus < vastaanottavan rivin loppu*. Luovutus voi siis olla myös kesken monipäiväisen keikan. Muuten siirto ohitetaan ja merkitään "ei täsmää".
+5. **Palauttamaton kalusto varaa toistaiseksi**, kun keikka ei ole omassa studiossa, on vahvistettu, valmis tai lähtenyt, rivi ei ole palautettu ja *nyt ≥ rivin loppu*. Aiemmin palaavan rivin (oma loppu) palautus merkitään rivikohtaisesti (`lineMarks`), muut keikan Palautettu-merkinnällä; keikan Palautettu kattaa myös merkitsemättömät aiemmin palaavat rivit. Ennen loppua merkitty palautus päättää varauksen.
 6. **Kunto** Huollossa tai Rikki varaa koko määrän paluuaikaan asti tai toistaiseksi. Arkistoidun kapasiteetti on 0. Peruttu keikka ei vaikuta, ellei se ole lähtenyt ja palauttamatta.
 7. **Vakavuus** lasketaan jokaiselle aikajaksolle erikseen. **Päällekkäin (punainen):** ylitys syntyy jo vahvistetuista, valmiista ja lähteneistä keikoista, kunnosta ja palauttamattomasta kalustosta. **Varoitus (keltainen):** alustavat keikat aiheuttavat ylityksen tai lisäävät sitä.
-8. **Pelivara** = *B:n tapahtuman alku − luovutus − ajoaika*. Alle 0 näytetään punaisena "Ei ehdi". Pelivara ei estä tallennusta.
-9. **Ensin vahvistanut voittaa (vastaus 5):** alustava keikka tallentuu aina. Kun keikka on tai siitä tulee Vahvistettu tai Valmis, tallennus estetään, jos se synnyttää **uuden** punaisen yhdistelmän (laite + kilpailijat tai kunto). "Ennen" on tallennettu tilanne, "jälkeen" tilanne muutoksen kanssa, molemmat samalla hetkellä. Olemassa oleva päällekkäisyys ei estä muita muutoksia.
+8. **Pelivara** = *tarvitaan − luovutus − ajoaika*, missä *tarvitaan* on vastaanottavan rivin "tarvitaan alkaen" tai B:n tapahtuman alku. Alle 0 näytetään punaisena "Ei ehdi". Jos luovutus on B:n tapahtuman alun jälkeen eikä "tarvitaan alkaen" ole annettu, näytetään "Saapuu kesken tapahtuman klo X" ilman punaista. Pelivara ei estä tallennusta.
+9. **Ensin vahvistanut voittaa (L5):** keltaiset varoitukset eivät estä mitään, joten alustava keikka tallentuu niistä huolimatta. Tallennus estetään, jos se synnyttää **uuden** punaisen yhdistelmän (laite + kilpailijat tai kunto). Tavallisesti näin käy vain vahvistetulla tai vahvistettavalla keikalla, mutta myös alustavan keikan suoran siirron muutos voi pidentää vahvistetun lähderivin varausta, joten tarkistus tehdään jokaiselle keikan tallennukselle. "Ennen" on tallennettu tilanne, "jälkeen" tilanne muutoksen kanssa, molemmat samalla hetkellä. Olemassa oleva päällekkäisyys ei estä muita muutoksia.
 10. **Faktojen kirjaamista ei estetä:** kunto, Lähti, Palautettu ja Siirretty tänne tallentuvat aina, ja seuraukset näkyvät päällekkäisyyksinä. Myöskään perumista ei estetä päällekkäisyyksien takia.
-11. **Suoran siirron ehdotus** näytetään, kun rivi osuu saman laitteen varaukseen keikalla, jonka tapahtuma alkaa ennen tämän keikan tapahtumaa. Luovutuksen oletus on lähdekeikan tapahtuman loppu + 60 min; jos se on liian myöhään (esim. monipäiväinen lähdekeikka), oletus on tämän keikan kaluston lähtö. Käyttäjä muuttaa sen tarvittaessa.
-12. **Rivin oma aika** ei saa ylittää keikan kalustojaksoa (lomake).
+11. **Suoran siirron ehdotus** näytetään, kun rivi osuu saman laitteen varaukseen keikalla, jonka tapahtuma alkaa ennen tämän keikan tapahtumaa. Luovutuksen oletus on lähdekeikan tapahtuman loppu + 60 min; jos se rikkoo säännön 4 (lähderivin lopun jälkeen tai ≥ tämän keikan tapahtuman loppu, esim. monipäiväinen lähdekeikka), oletus on tämän keikan kaluston lähtö. Käyttäjä muuttaa sen tarvittaessa (luvussa 4.6 ma 18.00).
+12. **Rivin oma aika** ei saa ylittää keikan kalustojaksoa (lomake). Poikkeus: suoran siirron luovutus saa olla ennen kaluston lähtöä.
 
 ### 5.2 Pseudokoodi
 
@@ -282,21 +286,22 @@ const live = (g?: Gig) => !!g && (g.status !== 'peruttu' || (!!g.departedAt && !
 const firm = (g: Gig) => ['vahvistettu', 'valmis'].includes(g.status) || !!g.departedAt
 
 const lineEnd = (g: Gig, l: Line) => l.end ?? g.equipEnd
-const lineStart = (g: Gig, l: Line, x: Ctx): Ms =>                 // muistiin (x.memo); kehä on mahdoton,
-  validFrom(g, l, x) ? l.from!.handoverAt : (l.start ?? g.equipStart) // koska luovutus > lähderivin alku
+const lineStart = (g: Gig, l: Line, x: Ctx): Ms =>
+  validFrom(g, l, x) ? l.from!.handoverAt : (l.start ?? g.equipStart)
 
-function validFrom(b: Gig, r: Line, x: Ctx): boolean {              // sääntö 4
-  const a = r.from && x.gig(r.from.gigId), s = a?.lines.find(l => l.id === r.from!.lineId)
-  const h = r.from?.handoverAt
+function validFrom(b: Gig, r: Line, x: Ctx): boolean {              // sääntö 4, tulos muistiin x.memo
+  if (!r.from || x.inCycle(r.id)) return false                       // from-ketju seurataan visited-joukolla
+  const a = x.gig(r.from.gigId), s = a?.lines.find(l => l.id === r.from!.lineId), h = r.from.handoverAt
   return !!s && live(a) && live(b) && s.itemId === r.itemId && r.qty <= s.qty
-    && x.firstReceiver(s.id) === r.id
-    && lineStart(a!, s, x) < h! && h! <= lineEnd(a!, s) && h! < b.eventEnd   // myös kesken keikan
+    && x.receiversOf(s.id).filter(l => live(x.gigOf(l))).length === 1  // useampi → kaikki "ei täsmää"
+    && lineStart(a!, s, x) < h && h <= lineEnd(a!, s)                 // lähderivin varauksen aikana
+    && h < b.eventEnd && h < lineEnd(b, r)                             // ennen vastaanottajan loppua
 }
 
 function lineDemands(g: Gig, l: Line, x: Ctx): Demand[] {
   const f = firm(g), start = lineStart(g, l, x)
   const out = x.validReceiverOf(l.id), sent = out?.qty ?? 0
-  const ret = l.end ? (l.returnedAt ?? g.returnedAt) : g.returnedAt  // aiemmin palaava rivi: oma merkintä
+  const ret = l.end ? (g.lineMarks?.[l.id]?.returnedAt ?? g.returnedAt) : g.returnedAt  // oma merkintä
   let end = lineEnd(g, l)
   if (ret && ret < end) end = ret                                     // aikainen palautus
   else if (!ret && f && !x.ownStudio(g) && x.now >= end) end = Infinity // palauttamatta
@@ -326,24 +331,26 @@ function segments(it: Item, ds: Demand[]): Seg[] {
   return mergeAdjacent(out)
 }
 
-// Punainen yhdistelmä, esim. 'KAM-01|B,W' tai 'KAM-04|B,D'
+// Punainen yhdistelmä, esim. 'KAM-01|B,W' tai 'KAM-04|B,D'; srcs() palauttaa lajitellut, yksilölliset id:t
 const redKeys = (x: Ctx) => x.items.flatMap(it =>
   segments(it, demandsFor(it, x)).filter(s => s.red).map(s => `${it.id}|${s.redSrcs.join(',')}`))
 
-function blockingOnSave(before: Ctx, after: Ctx, saved: Gig): string[] {   // sääntö 9, sama now
-  if (!firm(saved)) return []
+// Sääntö 9: jokaiselle keikan tallennukselle (ei perumiselle eikä säännön 10 faktoille), sama now
+function blockingOnSave(before: Ctx, after: Ctx): string[] {
   const old = new Set(redKeys(before))
   return redKeys(after).filter(k => !old.has(k))
 }
 ```
 
+**Vapaana-luvut** lasketaan samoista varauksista funktiolla `freeTimeline(it, ds, ikkuna, ilmanKeikkaa?)`, joka palauttaa kaikki jaksot (ei vain punaisia ja keltaisia). Keikan rivillä oma keikka jätetään pois ja ikkuna on rivin varausjakso; taululla ikkuna on Helsingin kalenteripäivä.
+
 Laskenta on suoraviivainen eikä optimoitu: laitteella on kymmeniä varauksia, joten 200 laitetta lasketaan millisekunneissa.
 
-**Missä nyt** (laitteelle, hetkellä *t*): haetaan rivi, jonka varaus kattaa hetken. Suorasta siirrosta tullut rivi on "Matkalla A → B" välillä *luovutus … luovutus + ajoaika* ja sen jälkeen B:n paikassa. Ennen rivin omaa alkua laite on kotipaikassa ("lähdössä keikalle X"), ja aiemmin palaava rivi on oman loppunsa jälkeen "palaamassa" tai, jos merkitty palautetuksi, kotipaikassa. Muuten oman studion keikalla laite on keikan tilassa, lähteneellä keikalla keikan paikassa, lähtemättömällä "Oma studio, lähdössä" ja palauttamattomalla "Palauttamatta: X". Ilman riviä laite on kotipaikassa. "Siirretty tänne" näytetään rinnalla, jos se on uudempi kuin laitteen viimeisin Lähti, Palautettu tai ohitettu luovutus. **Määrätavaralle** näytetään jakauma, esim. "12 Asiakas Oy · 8 Clarion, palaa ke 12.00 · 20 Oma studio".
+**Missä nyt** (laitteelle, hetkellä *t*): haetaan rivi, jonka varaus kattaa hetken. Suorasta siirrosta tullut rivi on "Matkalla A → B" välillä *luovutus … luovutus + ajoaika* ja sen jälkeen B:n paikassa. Rivillä, jolla on oma alku, lähtö luetaan rivin omasta Lähti-merkinnästä: siihen asti laite on "Oma studio, lähdössä keikalle X". Aiemmin palaava rivi on oman loppunsa jälkeen "Palauttamatta: X", kunnes rivi tai keikka merkitään palautetuksi. Muuten oman studion keikalla laite on keikan tilassa, lähteneellä keikalla keikan paikassa, lähtemättömällä "Oma studio, lähdössä" ja palauttamattomalla "Palauttamatta: X". Ilman riviä laite on kotipaikassa. "Siirretty tänne" näytetään rinnalla, jos se on uudempi kuin laitteen viimeisin Lähti, Palautettu tai ohitettu luovutus. **Määrätavaralle** näytetään jakauma, esim. "12 Asiakas Oy · 8 Clarion, palaa ke 12.00 · 20 Oma studio".
 
 **Tilanne:** Pois käytöstä → Palauttamatta → Keikalla → Vapaa.
 
-**Roudaukset:** lähtö rivin alussa (ellei rivi tule suorasta siirrosta), suora siirto luovutushetkellä ja paluu rivin lopussa sille määrälle, joka ei jatka. Aiemmin palaavalle riville näytetään oma Palautettu-painike. Siirto listataan, jos jompikumpi pää on studion ulkopuolella, ja saman ajan ja reitin rivit ryhmitellään.
+**Roudaukset:** lähtö rivin alussa (ellei rivi tule suorasta siirrosta), suora siirto luovutushetkellä ja paluu rivin lopussa sille määrälle, joka ei jatka. Oman ajan riveille näytetään rivikohtainen Lähti- tai Palautettu-painike. Siirto listataan, jos jompikumpi pää on studion ulkopuolella, ja saman ajan ja reitin rivit ryhmitellään.
 
 ### 5.3 Testit (Vitest)
 Testit ajetaan myös asetuksilla `TZ=UTC` ja `TZ=America/New_York`, jotta koodi ei riipu koneen aikavyöhykkeestä.
@@ -351,10 +358,10 @@ Testit ajetaan myös asetuksilla `TZ=UTC` ja `TZ=America/New_York`, jotta koodi 
 - **KAM-01:** B saa varoituksen ja sen vahvistus estyy; KAM-04:llä onnistuu; KAM-03 estää pe 15.59 asti, pe 16.00 alkava on OK; ensimmäinen vahvistus voittaa; vanha päällekkäisyys ei estä muistiinpanon tallennusta.
 - **XLR ma–pe** (luvun 4.4 jälkeen: A, W ja B vahvistettuja, C alustava): kaikki mukana 10, 12, 20, 28, 40 /40; vain vahvistetut 10, 12, 32, 40, 40 /40; ilman B → C -siirtoa ti 14.00–17.00 vapaana 0.
 - **Vakavuus:** vahvistetut ylittävät jaksolla [t1, t2) ja alustava lisää ylityksen jaksolle [t2, t3) → [t2, t3) on keltainen.
-- **Suorat siirrot:** pelivarat 16 h 30 min ja 15 h 25 min; "Ei ehdi" (luovutus 9.40, ajo 30 min, tapahtuma 10.00); peruttu C palauttaa B:n rivin loppumaan ke 12.00; luovutusta aiemmaksi siirretty C, poistettu lähderivi ja kaksi vastaanottajaa → "ei täsmää"; osamäärä 12/20 jättää 8 B:lle.
+- **Suorat siirrot:** pelivarat 16 h 30 min ja 15 h 25 min; "Ei ehdi" (luovutus 9.40, ajo 30 min, tapahtuma 10.00); peruttu C palauttaa B:n rivin loppumaan ke 12.00; luovutus lähderivin varauksen ulkopuolella, poistettu lähderivi, kaksi voimassa olevaa vastaanottajaa (molemmat), vastaanottavan rivin oma loppu ennen luovutusta ja itseensä tai toisiinsa viittaavat rivit (kehä) → "ei täsmää", ja kehä ei kaada laskentaa; peruttu vastaanottaja ei estä uutta; osamäärä 12/20 jättää 8 B:lle; kesken tapahtuman saapuva rivi ilman "tarvitaan alkaen" → "Saapuu kesken tapahtuman", ei punaista; alustavan C:n luovutuksen siirto myöhemmäksi, joka tekee vahvistetusta B:stä punaisen, estetään.
 - **Palauttamatta:** KAM-04 to 9.00 punainen vahvistetulla D:llä ("myöhässä 21 h"), keltainen alustavalla; ke 11.59 ei vielä; alustava lähtemätön ja oman studion keikka eivät jää varaamaan; aikainen Palautettu vapauttaa.
 - **Missä nyt:** luvun 4.5 kohdat.
-- **Monipäiväinen (luku 4.6):** KAM-01:n luovutus ma 18.00 kesken Messujen on kelvollinen ja pelivara 14 h 30 min; ilman siirtoa KAM-01 on punainen Studiohaastattelun kanssa; PTZ-03 on vapaa ma 19.00 alkaen, kun rivi on merkitty palautetuksi, ja merkitsemättä punainen tiistain vahvistetulle keikalle; luovutus ennen lähderivin alkua tai sen oman lopun jälkeen → "ei täsmää"; rivin oma aika jakson ulkopuolella hylätään.
+- **Monipäiväinen (luku 4.6):** KAM-01:n luovutus ma 18.00 kesken Messujen on kelvollinen ja pelivara 14 h 30 min; ilman siirtoa KAM-01 on punainen Studiohaastattelun kanssa; PTZ-03 on vapaa ma 19.00 alkaen, kun rivi on merkitty palautetuksi, ja merkitsemättä (now = ti 9.00) punainen tiistain vahvistetulle keikalle; keikan Palautettu kattaa merkitsemättömän rivin; myöhemmin lähtevä rivi on "Oma studio, lähdössä" ennen rivin Lähti-merkintää; luovutus ennen lähderivin alkua tai sen oman lopun jälkeen → "ei täsmää"; rivin oma aika jakson ulkopuolella hylätään, mutta luovutus ennen kaluston lähtöä hyväksytään.
 - **Aika:** keikka la 27.3.2027 14.00 – ma 29.3. 12.00 = **45 h**; 28.3.2027 klo 3.30 hylätään; 31.10.2027 klo 3.30 = 00.30 UTC; taulun päivä 28.3.2027 on 23 h ja 31.10.2027 25 h; "ti 1.12.2026 klo 9.00", "vk 49".
 - **Valinnainen fast-check:** satunnaisilla varauksilla `segments` antaa joka minuutille saman vakavuuden kuin minuuttikohtainen laskenta.
 - **Säännöt (emulaattori):** listalla oleva pääsee, listaamaton ei lue eikä kirjoita, isoja kirjaimia sisältävä osoite löytää pienikirjaimisen dokumentin.
@@ -443,7 +450,7 @@ Määräaikoja ei ole. Vaihe päättyy, kun se toimii oikeassa käytössä.
 - Valinnainen **Hyväksy päällekkäisyys** muistiinpanolla: keikkojen välinen päällekkäisyys näkyy harmaana ja sallii tallennuksen. Kunnon ja palauttamattoman kaluston päällekkäisyys pysyy punaisena. Uusi vahvistettu kilpailija ei voi liittyä huomaamatta, koska sen oma tallennus estetään.
 
 ### Myöhemmin (tarpeen mukaan)
-QR-tarrat (tunnus sopii tarraan sellaisenaan) · offline-tila · taulukkotuonti · pohjapiirros · ajoneuvot ja kuormatila · laukut sisältöineen · kuvat ja ohjeet (Storage, vaatii Blazen) · muutoshistoria · studiotilan tuplavarausvaroitus · rivikohtaiset palautukset muillekin kuin aiemmin palaaville riveille · tuleva huolto kuntoon · muistutukset ja iCal · ajoaikojen laskenta · monipäiväisen keikan päiväkohtaiset tilat (nyt sama paikka koko keikan).
+QR-tarrat (tunnus sopii tarraan sellaisenaan) · offline-tila · taulukkotuonti · pohjapiirros · ajoneuvot ja kuormatila · laukut sisältöineen · kuvat ja ohjeet (Storage, vaatii Blazen) · muutoshistoria · studiotilan tuplavarausvaroitus · rivikohtaiset palautukset muillekin kuin aiemmin palaaville riveille · tuleva huolto kuntoon · muistutukset ja iCal · ajoaikojen laskenta · monipäiväisen keikan päiväkohtaiset tilat (nyt sama paikka koko keikan) · laitteen paluu samalle keikalle kesken keikan.
 
 ---
 
@@ -460,7 +467,7 @@ QR-tarrat (tunnus sopii tarraan sellaisenaan) · offline-tila · taulukkotuonti 
 
 ---
 
-## 9. Käyttäjän vastaukset (23.11.2026)
+## 9. Tarkentavat vastaukset T1–T5 (23.11.2026)
 
 | # | Kysymys | Vastaus | Vaikutus |
 |---|---|---|---|
@@ -491,7 +498,7 @@ Avoimia kysymyksiä ei ole. Ennen vaihetta 1a tarvitaan vain Firebase-projekti, 
 
 **Säilytetty tarkoituksella:**
 - Testattu saatavuuslaskenta puoliavoimilla aikaväleillä, punainen ja keltainen jaksoittain, "ensin vahvistanut voittaa".
-- Suora siirto luovutushetkellä ja osamäärällä, kelpoisuustarkistus ja pelivara. Lisätty: luovutus kesken monipäiväisen keikan ja rivin oma aika.
+- Suora siirto luovutushetkellä ja osamäärällä, kelpoisuustarkistus ja pelivara. Lisätty: luovutus kesken monipäiväisen keikan, rivin oma aika ja rivikohtaiset Lähti- ja Palautettu-merkinnät (`lineMarks`).
 - Palauttamaton kalusto pysyy varattuna; lähtenyttä keikkaa ei voi perua ennen palautusta.
 - Helsingin aika testatuilla apufunktioilla ja kesäaikatesteillä; esimerkkiluvut testitapauksina.
 - Ristiinmuokkauksen tunnistus, jotta merkinnät eivät katoa.
