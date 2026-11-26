@@ -13,7 +13,7 @@ import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-rout
 import { AppDataContext, type AppData } from '../app/appData'
 import { theme } from '../app/theme'
 import { Availability } from '../core/availability'
-import type { AllowedUser, Gig, Item, Location, Package, Stored } from '../core/types'
+import type { AllowedUser, AppSettings, Gig, Item, Location, Package, Stored } from '../core/types'
 import type { DataState } from '../data/store'
 
 const stamp = { updatedAt: 0, updatedBy: 'anna@example.com' }
@@ -25,6 +25,7 @@ export interface TestData {
   locations?: Location[]
   packages?: Package[]
   users?: AllowedUser[]
+  settings?: AppSettings
   now?: number
   author?: string
 }
@@ -33,7 +34,7 @@ export function makeAppData(t: TestData = {}): AppData {
   const data: DataState = {
     status: 'ready',
     users: (t.users ?? [{ email: 'anna@example.com', name: 'Anna', initials: 'AN' }]).map(stored),
-    settings: {},
+    settings: t.settings ?? {},
     locations: (t.locations ?? []).map(stored),
     items: (t.items ?? []).map(stored),
     packages: (t.packages ?? []).map(stored),

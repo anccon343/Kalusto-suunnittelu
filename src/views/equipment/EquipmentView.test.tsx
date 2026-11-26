@@ -5,7 +5,6 @@ import { at, gigBInitial, gigW, item, items, locations } from '../../core/__fixt
 import { createItem } from '../../data/writes'
 import { renderView, type TestData } from '../../test/render'
 import EquipmentView from './index'
-import './testSetup'
 
 vi.mock(import('../../data/writes'), async (importOriginal) => ({
   ...(await importOriginal()),

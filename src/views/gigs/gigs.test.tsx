@@ -1,4 +1,3 @@
-import { notifications } from '@mantine/notifications'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -17,13 +16,6 @@ vi.mock('../../data/writes', async (importOriginal) => ({
   saveGig: vi.fn<Writes['saveGig']>(() => Promise.resolve(['status'])),
   deleteTentativeGig: vi.fn<Writes['deleteTentativeGig']>(() => Promise.resolve()),
 }))
-
-// jsdom has no FontFaceSet; Mantine's autosize Textarea listens to it.
-if (!('fonts' in document)) {
-  Object.defineProperty(document, 'fonts', {
-    value: { addEventListener: () => {}, removeEventListener: () => {} },
-  })
-}
 
 const users = [
   { email: 'anna@example.com', name: 'Anna', initials: 'AN' },
@@ -51,8 +43,6 @@ function setTime(label: string, date: string, time: string) {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  notifications.clean()
-  notifications.cleanQueue()
 })
 
 describe('new gig', () => {

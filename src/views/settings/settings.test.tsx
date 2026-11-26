@@ -1,4 +1,3 @@
-import { notifications } from '@mantine/notifications'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -41,18 +40,8 @@ function renderApp(app: AppData, path: string) {
   )
 }
 
-// jsdom has no FontFaceSet; Mantine's autosize Textarea listens to it.
-if (!('fonts' in document)) {
-  Object.defineProperty(document, 'fonts', {
-    value: { addEventListener: () => {}, removeEventListener: () => {} },
-  })
-}
-
 beforeEach(() => {
   vi.clearAllMocks()
-  // The notification store is global; leftovers from earlier tests would queue new ones.
-  notifications.clean()
-  notifications.cleanQueue()
 })
 
 describe('Kohteet', () => {

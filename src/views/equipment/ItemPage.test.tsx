@@ -5,7 +5,6 @@ import { at, gigBInitial, gigW, items, locations } from '../../core/__fixtures__
 import { ConflictError, createItem, saveItem } from '../../data/writes'
 import { renderView, type TestData } from '../../test/render'
 import ItemPage from './ItemPage'
-import './testSetup'
 
 vi.mock(import('../../data/writes'), async (importOriginal) => ({
   ...(await importOriginal()),

@@ -23,7 +23,8 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:tz",
     "emulators": "firebase emulators:start --only auth,firestore --project demo-roudari",
     "dev:emu": "VITE_USE_EMULATORS=true vite",
-    "test:emulator": "firebase emulators:exec --only firestore --project demo-roudari \"vitest run --config vitest.emulator.config.ts\""
+    "test:emulator": "firebase emulators:exec --only firestore --project demo-roudari \"vitest run --config vitest.emulator.config.ts\"",
+    "seed:emu": "tsx scripts/seed-emulator.ts"
   },
   "dependencies": {
     "@fullcalendar/react": "7.1.5",
@@ -60,6 +61,7 @@
     "postcss-preset-mantine": "^1.18.0",
     "postcss-simple-vars": "^7.0.1",
     "prettier": "^3.10.1",
+    "tsx": "^4.23.15",
     "typescript": "~7.0.2",
     "vite": "^8.3.6",
     "vitest": "^5.1.1"
