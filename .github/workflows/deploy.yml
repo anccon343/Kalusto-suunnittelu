@@ -1,0 +1,56 @@
+name: Deploy
+
+# Deploys Hosting, Firestore rules and Firestore indexes to Firebase (roudari-97f09)
+# from main, after the full CI suite passes. Authentication is keyless: Workload
+# Identity Federation lets this repository's main branch, in the "production"
+# environment, act as the github-deployer service account (scripts/setup-github-deploy.sh).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to Firebase
+    needs: checks
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://roudari-97f09.web.app
+    permissions:
+      contents: read
+      id-token: write # OIDC token for Workload Identity Federation
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: projects/976934355295/locations/global/workloadIdentityPools/github/providers/kalusto-suunnittelu
+          service_account: github-deployer@roudari-97f09.iam.gserviceaccount.com
+      - name: firebase deploy
+        run: >-
+          pnpm exec firebase deploy
+          --only hosting,firestore:rules,firestore:indexes
+          --project roudari-97f09
+          --non-interactive

@@ -99,3 +99,16 @@ pnpm dev:emu
 
 `pnpm test:emulator` ajaa sääntö- ja tietokerrostestit (myös CI:ssä). Kehitystä varten käynnistä
 `pnpm emulators` yhteen terminaaliin ja `pnpm dev:emu` toiseen.
+
+### Julkaisu
+
+Julkaisu on automaattinen: kun `main`-haaraan tulee muutos, GitHub Actions
+([`deploy.yml`](.github/workflows/deploy.yml)) ajaa ensin kaikki tarkistukset ja julkaisee sitten
+sovelluksen (Firebase Hosting), Firestore-säännöt ja -indeksit projektiin `roudari-97f09`.
+Julkaisun voi käynnistää myös käsin Actions-välilehdeltä (Run workflow, haara `main`).
+
+Tunnistautuminen on avaimeton (Workload Identity Federation): pysyviä avaimia tai salaisuuksia
+ei ole. Google hyväksyy vain tämän repositorion `main`-haaran ajot GitHub-ympäristössä
+`production`, ja ne saavat toimia palvelutilinä `github-deployer`, jolla on vain julkaisuun
+tarvittavat oikeudet. Kertaluonteinen asennus tehdään Google Cloud Shellissä skriptillä
+[`scripts/setup-github-deploy.sh`](scripts/setup-github-deploy.sh).

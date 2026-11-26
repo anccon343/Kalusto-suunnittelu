@@ -2,14 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [main, 'claude/**']
+    # main is checked by the Deploy workflow, which calls this one before deploying.
+    branches: ['claude/**']
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # github.workflow is the caller's name when called from Deploy, so the two never cancel each other.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
