@@ -1,0 +1,22 @@
+.bottomNav {
+  display: flex;
+  height: 100%;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.bottomItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 48px;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+}
+
+.bottomItem[data-active] {
+  color: var(--mantine-primary-color-filled);
+  font-weight: 600;
+}

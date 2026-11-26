@@ -14,14 +14,31 @@ export default defineConfig({
           groups: [
             { name: 'firebase', test: /node_modules[\\/](@firebase|firebase)[\\/]/ },
             { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            {
+              name: 'ui',
+              test: /node_modules[\\/](@mantine|@floating-ui|@tabler|react-router|dayjs)[\\/]/,
+            },
           ],
         },
       },
     },
   },
   test: {
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    environment: 'node',
+    projects: [
+      {
+        extends: true,
+        test: { name: 'unit', include: ['src/**/*.test.ts'], environment: 'node' },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'ui',
+          include: ['src/**/*.test.tsx'],
+          environment: 'jsdom',
+          setupFiles: ['src/test/setup.ts'],
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       include: ['src/core/**/*.ts'],
