@@ -1,0 +1,71 @@
+/** Finnish texts of the Kalenteri view. */
+export const t = {
+  title: 'Kalenteri',
+  showCancelled: 'Näytä perutut',
+  today: 'Tänään',
+  prev: 'Edellinen jakso',
+  next: 'Seuraava jakso',
+  viewLabel: 'Näkymä',
+  views: {
+    month: 'Kuukausi',
+    week: 'Viikko',
+    list: 'Lista',
+  },
+  months: [
+    'tammikuu',
+    'helmikuu',
+    'maaliskuu',
+    'huhtikuu',
+    'toukokuu',
+    'kesäkuu',
+    'heinäkuu',
+    'elokuu',
+    'syyskuu',
+    'lokakuu',
+    'marraskuu',
+    'joulukuu',
+  ],
+  noEvents: 'Ei keikkoja tällä jaksolla.',
+  newGigOn: (date: string) => `Uusi keikka ${date}`,
+  more: (n: number) => `+${n} lisää`,
+  moreHint: (n: number) => `Näytä ${n} muuta keikkaa`,
+  week: (n: number) => `vk ${n}`,
+  weekShort: 'vk',
+  weekLong: 'Viikko',
+  showWeek: (week: string) => `Näytä ${week.toLowerCase()}`,
+  startsAt: (time: string) => `alkaa ${time}`,
+  continues: 'jatkuu',
+  endsAt: (time: string) => `päättyy ${time}`,
+  /** Short status tags shown on the event itself (with the colour). */
+  statusTag: {
+    alustava: 'alust.',
+    vahvistettu: '',
+    valmis: 'valmis',
+    peruttu: 'peruttu',
+  },
+  /** Full status names for list view and screen readers. */
+  status: {
+    alustava: 'Alustava',
+    vahvistettu: 'Vahvistettu',
+    valmis: 'Valmis',
+    peruttu: 'Peruttu',
+  },
+  conflict: {
+    red: 'Päällekkäin',
+    yellow: 'Varoitus',
+  },
+  /** Screen reader texts for the conflict marker. */
+  conflictAria: {
+    red: 'päällekkäisyys',
+    yellow: 'varoitus',
+  },
+  legend: {
+    label: 'Selite',
+    alustava: 'alustava (vinoviivoitus)',
+    vahvistettu: 'vahvistettu',
+    valmis: 'valmis',
+    peruttu: 'peruttu',
+    red: 'päällekkäin (punainen)',
+    yellow: 'varoitus (oranssi)',
+  },
+} as const

@@ -1,5 +1,5 @@
-import { Placeholder } from '../../ui/Placeholder'
+import { CalendarView } from './CalendarView'
 
 export default function View() {
-  return <Placeholder title="Kalenteri" />
+  return <CalendarView />
 }

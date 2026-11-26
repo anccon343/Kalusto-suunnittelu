@@ -1,0 +1,214 @@
+/*
+ * FullCalendar's classic theme mapped to Mantine variables, so the calendar follows
+ * the light and dark colour schemes. Event styles follow docs/UI.md: confirmed gigs
+ * use the single accent, tentative ones are hatched grey, done ones are muted, and
+ * every style is paired with text (see EventContent and Legend).
+ */
+.root {
+  --fc-classic-background: var(--mantine-color-body);
+  --fc-classic-foreground: var(--mantine-color-text);
+  --fc-classic-muted-foreground: var(--mantine-color-dimmed);
+  --fc-classic-faint-foreground: var(--mantine-color-dimmed);
+  --fc-classic-border: var(--mantine-color-default-border);
+  --fc-classic-strong-border: var(--mantine-color-default-border);
+  --fc-classic-primary: var(--mantine-primary-color-filled);
+  --fc-classic-primary-foreground: var(--mantine-primary-color-contrast);
+  --fc-classic-event: var(--mantine-primary-color-filled);
+  --fc-classic-event-contrast: var(--mantine-primary-color-contrast);
+  --fc-classic-button: var(--mantine-color-default);
+  --fc-classic-button-border: var(--mantine-color-default-border);
+  --fc-classic-button-strong: var(--mantine-color-default-hover);
+  --fc-classic-button-strong-border: var(--mantine-color-default-border);
+  --fc-classic-button-foreground: var(--mantine-color-text);
+  --fc-classic-now: var(--mantine-color-red-filled);
+  --fc-classic-today: rgb(0 0 0 / 4%);
+  --fc-classic-highlight: var(--mantine-primary-color-light);
+  --fc-classic-faint: rgb(0 0 0 / 4%);
+  --fc-classic-muted: rgb(0 0 0 / 8%);
+  --fc-classic-strong: rgb(0 0 0 / 14%);
+
+  --cal-hatch: rgb(0 0 0 / 14%);
+
+  font-variant-numeric: tabular-nums;
+
+  @mixin dark {
+    --fc-classic-faint: rgb(255 255 255 / 4%);
+    --fc-classic-muted: rgb(255 255 255 / 8%);
+    --fc-classic-strong: rgb(255 255 255 / 14%);
+    --fc-classic-today: rgb(255 255 255 / 5%);
+    --cal-hatch: rgb(255 255 255 / 16%);
+  }
+}
+
+/* Status colours: set on the event element (class) and on legend swatches (data-status). */
+.vahvistettu,
+[data-status='vahvistettu'] {
+  --cal-event-bg: var(--mantine-primary-color-filled);
+  --cal-event-fg: var(--mantine-primary-color-contrast);
+  --cal-event-border: var(--mantine-primary-color-filled);
+
+  /* The dark scheme's filled accent is light; keep white text readable. */
+  @mixin dark {
+    --cal-event-bg: var(--mantine-color-slate-8);
+    --cal-event-border: var(--mantine-color-slate-6);
+  }
+}
+
+.alustava,
+[data-status='alustava'] {
+  --cal-event-bg: var(--mantine-color-gray-1);
+  --cal-event-fg: var(--mantine-color-text);
+  --cal-event-border: var(--mantine-color-gray-6);
+  --cal-event-pattern: repeating-linear-gradient(
+    135deg,
+    var(--cal-hatch) 0 2px,
+    transparent 2px 7px
+  );
+  --cal-event-border-style: dashed;
+
+  @mixin dark {
+    --cal-event-bg: var(--mantine-color-dark-5);
+    --cal-event-border: var(--mantine-color-dark-2);
+  }
+}
+
+.valmis,
+[data-status='valmis'] {
+  --cal-event-bg: var(--mantine-color-gray-3);
+  --cal-event-fg: var(--mantine-color-gray-8);
+  --cal-event-border: var(--mantine-color-gray-4);
+
+  @mixin dark {
+    --cal-event-bg: var(--mantine-color-dark-4);
+    --cal-event-fg: var(--mantine-color-dark-0);
+    --cal-event-border: var(--mantine-color-dark-4);
+  }
+}
+
+.peruttu,
+[data-status='peruttu'] {
+  --cal-event-bg: transparent;
+  --cal-event-fg: var(--mantine-color-dimmed);
+  --cal-event-border: var(--mantine-color-default-border);
+  --cal-event-border-style: dashed;
+  --cal-event-decoration: line-through;
+}
+
+/* Block events in the month and week views. Two classes beat the theme's single ones. */
+.root .event {
+  background-color: var(--cal-event-bg);
+  background-image: var(--cal-event-pattern, none);
+  color: var(--cal-event-fg);
+  border: 1px var(--cal-event-border-style, solid) var(--cal-event-border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+/* Rows of the list view stay plain; the status shows as a swatch and a word. */
+.root .listEvent {
+  min-height: 48px;
+  cursor: pointer;
+}
+
+.root .hidden {
+  display: none;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 1px 2px;
+}
+
+.content[data-view='list'] {
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.content[data-view='list'] .line {
+  gap: 8px;
+}
+
+.time {
+  flex: none;
+  font-size: 0.85em;
+}
+
+.content[data-view='list'] .time {
+  min-width: 6.5em;
+  font-size: inherit;
+}
+
+.tag {
+  flex: none;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: var(--cal-event-decoration, none);
+}
+
+.content[data-view='list'] .title {
+  white-space: normal;
+  font-weight: 600;
+}
+
+.content[data-view='time'] .title {
+  white-space: normal;
+}
+
+.marker {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15em;
+  padding: 0 3px;
+  border-radius: 2px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.marker[data-level='red'] {
+  background-color: var(--mantine-color-red-filled);
+  color: var(--mantine-color-white);
+  border: 1px solid var(--mantine-color-red-filled);
+}
+
+/* Yellow is outlined, not filled, so it differs from red by shape too. */
+.marker[data-level='yellow'] {
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-orange-text);
+  border: 1px solid var(--mantine-color-orange-filled);
+}
+
+.swatch {
+  flex: none;
+  display: inline-block;
+  width: 1.25rem;
+  height: 0.875rem;
+  border-radius: 2px;
+  background-color: var(--cal-event-bg);
+  background-image: var(--cal-event-pattern, none);
+  border: 1px var(--cal-event-border-style, solid) var(--cal-event-border);
+}
+
+.content[data-view='time'] .line {
+  flex-wrap: wrap;
+}
