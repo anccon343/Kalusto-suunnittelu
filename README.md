@@ -108,7 +108,15 @@ sovelluksen (Firebase Hosting), Firestore-säännöt ja -indeksit projektiin `ro
 Julkaisun voi käynnistää myös käsin Actions-välilehdeltä (Run workflow, haara `main`).
 
 Tunnistautuminen on avaimeton (Workload Identity Federation): pysyviä avaimia tai salaisuuksia
-ei ole. Google hyväksyy vain tämän repositorion `main`-haaran ajot GitHub-ympäristössä
-`production`, ja ne saavat toimia palvelutilinä `github-deployer`, jolla on vain julkaisuun
-tarvittavat oikeudet. Kertaluonteinen asennus tehdään Google Cloud Shellissä skriptillä
-[`scripts/setup-github-deploy.sh`](scripts/setup-github-deploy.sh).
+ei ole. Google hyväksyy vain tämän repositorion työnkulun `deploy.yml` ajot `main`-haarasta
+GitHub-ympäristössä `production` (push tai käsin käynnistys), ja ne saavat toimia palvelutilinä
+`github-deployer`, jolla on vain julkaisuun tarvittavat oikeudet. Sovellus käännetään erillisessä
+työssä ilman julkaisuoikeutta; julkaisutyö vain julkaisee valmiin paketin.
+
+Kertaluonteinen asennus:
+
+1. Google Cloud Shellissä skripti
+   [`scripts/setup-github-deploy.sh`](scripts/setup-github-deploy.sh) (projektin omistajana).
+2. GitHubissa (Settings): ympäristö `production`, johon julkaisu sallitaan vain haarasta `main`,
+   sekä `main`-haaran sääntö (ei poistoa eikä force pushia, muutokset pull requestin ja CI:n
+   kautta).

@@ -9,9 +9,13 @@
 #   2. Creates the service account "github-deployer" with only the roles a deploy of
 #      Hosting, Firestore rules and Firestore indexes needs.
 #   3. Creates a Workload Identity pool and a GitHub OIDC provider that accepts only
-#      this repository (by its numeric ids), the main branch and the "production"
-#      environment, and lets it impersonate the service account.
+#      this repository (by its numeric ids), the workflow .github/workflows/deploy.yml
+#      on the main branch in the "production" environment, triggered by push or a
+#      manual run, and lets it impersonate the service account.
 # No keys are created or downloaded.
+#
+# The "production" environment and the main branch must also be protected in the
+# GitHub settings (see README, "Julkaisu"); this script prints the steps at the end.
 set -euo pipefail
 
 PROJECT_ID="roudari-97f09"
@@ -53,9 +57,22 @@ if ! gcloud iam service-accounts describe "$SA_EMAIL" >/dev/null 2>&1; then
     --display-name="GitHub Actions deployer" \
     --description="Deploys Roudari from ${REPO} (main) via Workload Identity Federation"
 fi
+# A just-created service account can take about a minute to become visible to IAM.
+retry() {
+  local attempt
+  for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    "$@" >/dev/null && return 0
+    if ((attempt == 12)); then
+      echo "Still failing after 2 minutes. Wait a moment and run this script again." >&2
+      return 1
+    fi
+    echo "  not ready yet, retrying in 10 s..." >&2
+    sleep 10
+  done
+}
 for role in "${DEPLOY_ROLES[@]}"; do
-  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-    --member="serviceAccount:${SA_EMAIL}" --role="$role" --condition=None >/dev/null
+  retry gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${SA_EMAIL}" --role="$role" --condition=None
   echo "  granted ${role}"
 done
 
@@ -65,10 +82,10 @@ if ! gcloud iam workload-identity-pools describe "$POOL_ID" --location=global >/
     --location=global --display-name="GitHub Actions"
 fi
 
-ATTRIBUTE_MAPPING="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id,attribute.ref=assertion.ref,attribute.environment=assertion.environment"
-ATTRIBUTE_CONDITION="assertion.repository_owner_id == '${REPO_OWNER_ID}' && assertion.repository_id == '${REPO_ID}' && assertion.ref == 'refs/heads/main' && assertion.environment == 'production'"
+ATTRIBUTE_MAPPING="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id,attribute.ref=assertion.ref,attribute.environment=assertion.environment,attribute.workflow_ref=assertion.job_workflow_ref,attribute.event_name=assertion.event_name"
+ATTRIBUTE_CONDITION="assertion.repository_owner_id == '${REPO_OWNER_ID}' && assertion.repository_id == '${REPO_ID}' && assertion.ref == 'refs/heads/main' && assertion.environment == 'production' && assertion.job_workflow_ref == '${REPO}/.github/workflows/deploy.yml@refs/heads/main' && assertion.event_name in ['push', 'workflow_dispatch']"
 
-step "OIDC provider '${PROVIDER_ID}' (only ${REPO}, branch main, environment production)"
+step "OIDC provider '${PROVIDER_ID}' (only deploy.yml in ${REPO}, branch main, environment production)"
 if gcloud iam workload-identity-pools providers describe "$PROVIDER_ID" \
   --location=global --workload-identity-pool="$POOL_ID" >/dev/null 2>&1; then
   gcloud iam workload-identity-pools providers update-oidc "$PROVIDER_ID" \
@@ -84,10 +101,10 @@ fi
 
 step "Allowing the repository to act as the service account"
 POOL_NAME="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL_ID}"
-gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
+retry gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
   --role="roles/iam.workloadIdentityUser" \
   --member="principalSet://iam.googleapis.com/${POOL_NAME}/attribute.repository_id/${REPO_ID}" \
-  --condition=None >/dev/null
+  --condition=None
 
 PROVIDER_NAME="$(gcloud iam workload-identity-pools providers describe "$PROVIDER_ID" \
   --location=global --workload-identity-pool="$POOL_ID" --format='value(name)')"
@@ -96,3 +113,8 @@ step "Done"
 echo "workload_identity_provider: ${PROVIDER_NAME}"
 echo "service_account:            ${SA_EMAIL}"
 echo "IAM changes can take up to 5 minutes to take effect."
+echo
+echo "Next, in GitHub (https://github.com/${REPO}/settings):"
+echo "  1. Environments > New environment 'production' > Deployment branches: only 'main'."
+echo "  2. Rules > Rulesets > New branch ruleset for 'main': restrict deletions, block force"
+echo "     pushes, require a pull request and the CI status checks before merging."
